@@ -394,6 +394,47 @@ class MC_RolePageAccess(models.Model):
     class Meta:
         db_table = "MC_RolePageAccess"
 
+class M_ImageTypes(models.Model):
+    Name = models.CharField(max_length=500)
+    CreatedBy = models.IntegerField(default=False)
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField(default=False)
+    UpdatedOn = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        db_table = "M_ImageTypes"         
+
+class M_ProductCategoryType(models.Model):
+    Name = models.CharField(max_length=500)
+    CreatedBy = models.IntegerField(default=False)
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField(default=False)
+    UpdatedOn = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "M_ProductCategoryType"
+
+class M_ProductCategory(models.Model):
+    Name = models.CharField(max_length=500)
+    ProductCategoryType = models.ForeignKey(
+        M_ProductCategoryType, related_name='ProductCategoryType', on_delete=models.DO_NOTHING)
+    CreatedBy = models.IntegerField(default=False)
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField(default=False)
+    UpdatedOn = models.DateTimeField(auto_now_add=True)    
+    class Meta:
+        db_table = "M_ProductCategory"
+
+class M_ProductSubCategory(models.Model):
+    Name = models.CharField(max_length=500)
+    ProductCategory = models.ForeignKey(
+        M_ProductCategory, related_name='ProductCategory', on_delete=models.DO_NOTHING)
+    CreatedBy = models.IntegerField(default=False)
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField(default=False)
+    UpdatedOn = models.DateTimeField(auto_now_add=True)    
+    class Meta:
+        db_table = "M_ProductSubCategory"        
+
 
 class M_ItemsGroup(models.Model):
 
@@ -429,13 +470,8 @@ class M_Items(models.Model):
         C_Companies, related_name='ItemCompany', on_delete=models.DO_NOTHING)
     BaseUnitID = models.ForeignKey(
         M_Units, related_name='BaseUnitID', on_delete=models.DO_NOTHING)
-    # GSTPercentage = models.DecimalField(max_digits=10, decimal_places=2)
-    # MRP = models.DecimalField(max_digits=20, decimal_places=2)
     BarCode = models.CharField(max_length=500) 
-    ItemGroup = models.ForeignKey(M_ItemsGroup, related_name='ItemGroup', on_delete=models.DO_NOTHING)
-    # Rate = models.DecimalField(max_digits=20, decimal_places=2)
     isActive = models.BooleanField(default=False)
-    image = models.ImageField(upload_to='images')  
     CreatedBy = models.IntegerField(default=False)
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField(default=False)
@@ -463,17 +499,10 @@ class MC_ItemsGMMH(models.Model):
     class Meta:
         db_table = "MC_ItemsGMMH"
         
-class M_ItemsShelfLife(models.Model):
-   Name = models.CharField(max_length=500)
-   Days = models.IntegerField(default=False)
-   
-   class Meta:
-        db_table = "M_ItemsShelfLife"       
-        
 
 class MC_ItemUnits(models.Model):
     Item = models.ForeignKey(
-        M_Items, related_name='ItemUnitsItemID', on_delete=models.DO_NOTHING)
+        M_Items, related_name='ItemUnitsID', on_delete=models.DO_NOTHING)
     UnitID = models.ForeignKey(
         M_Units, related_name='UnitID', on_delete=models.DO_NOTHING)
     BaseUnitQuantity = models.DecimalField(max_digits=5, decimal_places=3)
@@ -484,54 +513,31 @@ class MC_ItemUnits(models.Model):
 
     class Meta:
         db_table = "MC_ItemUnits"
-
-class M_ProductCategoryType(models.Model):
-    Name = models.CharField(max_length=500)
-    CreatedBy = models.IntegerField(default=False)
-    CreatedOn = models.DateTimeField(auto_now_add=True)
-    UpdatedBy = models.IntegerField(default=False)
-    UpdatedOn = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "M_ProductCategoryType"
-
-class M_ProductCategory(models.Model):
-    Name = models.CharField(max_length=500)
-    ProductCategoryType = models.ForeignKey(
-        M_ProductCategoryType, related_name='ProductCategoryType', on_delete=models.DO_NOTHING)
-    CreatedBy = models.IntegerField(default=False)
-    CreatedOn = models.DateTimeField(auto_now_add=True)
-    UpdatedBy = models.IntegerField(default=False)
-    UpdatedOn = models.DateTimeField(auto_now_add=True)    
-    class Meta:
-        db_table = "M_ProductCategory"
-
-class M_ProductSubCategory(models.Model):
-    Name = models.CharField(max_length=500)
-    ProductCategory = models.ForeignKey(
-        M_ProductCategory, related_name='ProductCategory', on_delete=models.DO_NOTHING)
-    CreatedBy = models.IntegerField(default=False)
-    CreatedOn = models.DateTimeField(auto_now_add=True)
-    UpdatedBy = models.IntegerField(default=False)
-    UpdatedOn = models.DateTimeField(auto_now_add=True)    
-    class Meta:
-        db_table = "M_ProductSubCategory"
+                
+class MC_ItemsImages(models.Model):
+    ImageType= models.ForeignKey(M_ImageTypes, related_name='ImageType', on_delete=models.DO_NOTHING)
+    Item = models.ForeignKey(M_Items, related_name='ItemImagesdetails', on_delete=models.DO_NOTHING)
+    Item_pic = models.FileField()      
 
 
 class MC_ItemCategoryDetails(models.Model):
     # Name = models.CharField(max_length=500)
-    ProductCategory = models.ForeignKey(
-        M_ProductCategory, related_name='MProductCategory', on_delete=models.DO_NOTHING)
-    Item = models.ForeignKey(
-        M_Items, related_name='ProductItem', on_delete=models.DO_NOTHING)     
+    ProductCategory = models.ForeignKey(M_ProductCategory, related_name='MProductCategory', on_delete=models.DO_NOTHING)
+    Item = models.ForeignKey(M_Items, related_name='ProductItem', on_delete=models.DO_NOTHING)     
     CreatedBy = models.IntegerField(default=False)
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField(default=False)
     UpdatedOn = models.DateTimeField(auto_now_add=True)
     class Meta:
         db_table = "MC_ItemCategoryDetails"
+        
 
-
+class M_ItemsShelfLife(models.Model):
+    Name = models.CharField(max_length=500)
+    Days = models.IntegerField(default=False)
+    class Meta:
+        db_table = "M_ItemsShelfLife"
+        
 class T_Orders(models.Model):
 
     OrderDate = models.DateField()
