@@ -1,3 +1,4 @@
+from sys import modules
 from urllib import response
 from django.http import JsonResponse
 from rest_framework.response import Response
@@ -17,26 +18,60 @@ class RoleAccessView(RetrieveAPIView):
     permission_classes = (IsAuthenticated,)
     authentication_class = JSONWebTokenAuthentication
 
-    def get(self, request, Role=0, Division=0, Company=0):
+    # def get(self, request, Role=0, Division=0, Company=0):
         # def get(self, request, Role=0):
+
+    def get(self, request, PartyID=0, EmployeeID=0):    
+        Company=1
+        Division=PartyID
+        
+        if (int(PartyID) > 0)  :
+            
+            Role=MC_UserRoles.objects.raw('''SELECT Role_id id FROM mc_userroles join m_users on m_users.id=mc_userroles.User_id where Party_id= %s and m_users.Employee_id=%s''',(PartyID,EmployeeID))
+        else:
+            Role=MC_UserRoles.objects.raw('''SELECT Role_id id FROM mc_userroles join m_users on m_users.id=mc_userroles.User_id where m_users.Employee_id=%s''',EmployeeID)
+        
+        
+        qq = M_RoleAccessSerializerforRole(Role, many=True).data
+        
+        
+        if(len(qq) == 1):
+            roles=list()
+            roles.append(qq[0]['id'])
+            roles.append(0)
+            y=tuple(roles)
+            
+        else:     
+            roles=list()
+            for a in qq:
+                roles.append(a['id'])
+            y=tuple(roles)
+
+            
+        
         modules = M_RoleAccess.objects.raw(
-            '''SELECT distinct Modules_id id ,h_modules.id, h_modules.Name,h_modules.DisplayIndex 
-FROM m_roleaccess 
-join h_modules on h_modules.id=m_roleaccess.Modules_id
-where Role_id =%s AND M_RoleAccess.Division_id=%s AND M_RoleAccess.Company_id=%s
-ORDER BY h_modules.DisplayIndex''', ([Role], [Division], [Company]))
+            '''SELECT distinct Modules_id id ,h_modules.Name FROM m_roleaccess 
+            join h_modules on h_modules.id=m_roleaccess.Modules_id 
+            WHERE  Role_id IN %s  AND M_RoleAccess.Division_id=%s AND M_RoleAccess.Company_id=%s ORDER BY h_modules.DisplayIndex''', ( y,Division, Company)) 
+        # return Response(str(modules.query))
+        
         data = M_RoleAccessSerializerfordistinctModule(modules, many=True).data
+        
+        
         Moduledata = list()
+        
         for a in data:
             id = a['id']
+            
             query = M_RoleAccess.objects.raw('''SELECT m_roleaccess.id,m_pages.Name,m_pages.PageHeading,m_pages.PageDescription,m_pages.PageDescriptionDetails,m_pages.ActualPagePath,m_pages.DisplayIndex,
 m_pages.Icon,m_pages.isActive,m_pages.Module_id,
 m_pages.PageType,m_pages.RelatedPageID,Pages_id FROM m_roleaccess
 JOIN m_pages ON m_pages.id=m_roleaccess.Pages_id 
-WHERE Role_id=%s AND  Modules_id=%s and Division_id=%s and Company_id=%s  ''', ([Role], [id],[Division],[Company]))
-
+WHERE Role_id IN  %s AND  Modules_id=%s and Division_id=%s and Company_id=%s  ''', (y, [id],[Division],[Company]))
+            # return Response(str(query.query))
             PageSerializer = M_PagesSerializerforRoleAccessNEW(
                 query,  many=True).data
+           
             Pagesdata = list()
             for a1 in PageSerializer:
                 id = a1['id']

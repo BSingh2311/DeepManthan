@@ -104,9 +104,8 @@ class M_Parties(models.Model):
         M_DivisionType, related_name='PartiesDivision', on_delete=models.DO_NOTHING)
     Company = models.ForeignKey(
         C_Companies, related_name='PartiesCompany', on_delete=models.DO_NOTHING)
-    # IsSCM = models.ForeignKey(
-    #     C_Companies, related_name='IsSCM', on_delete=models.DO_NOTHING, null=True)
-    CustomerDivision = models.IntegerField()
+   
+
     Email = models.EmailField(max_length=200)
     MobileNo = models.BigIntegerField()
     AlternateContactNo = models.CharField(
@@ -342,9 +341,9 @@ class M_RoleAccess(models.Model):
     Role = models.ForeignKey(
         M_Roles, related_name='RoleAccessRole', on_delete=models.DO_NOTHING)
     Company = models.ForeignKey(
-        C_Companies, related_name='RoleAccessCompany', on_delete=models.DO_NOTHING)
+        C_Companies, related_name='RoleAccessCompany', on_delete=models.DO_NOTHING ,null=True,blank=True)
     Division = models.ForeignKey(
-        M_Parties, related_name='RoleAccessDividion', on_delete=models.DO_NOTHING)
+        M_Parties, related_name='RoleAccessDividion', on_delete=models.DO_NOTHING,null=True,blank=True)
     Modules = models.ForeignKey(
         H_Modules, related_name='RoleAccessModules', on_delete=models.DO_NOTHING)
     Pages = models.ForeignKey(
@@ -357,6 +356,12 @@ class M_RoleAccess(models.Model):
     class Meta:
         db_table = "M_RoleAccess"
 
+class MC_RolesEmployeeTypes(models.Model):
+    Role = models.ForeignKey(M_Roles, related_name='RoleEmployeeTypes', on_delete=models.DO_NOTHING)
+    EmployeeType = models.ForeignKey(M_EmployeeTypes, on_delete=models.DO_NOTHING)
+    class Meta:
+        db_table = "MC_RolesEmployeeTypes"
+    
 
 class H_PageAccess(models.Model):
 
@@ -435,21 +440,6 @@ class M_ProductSubCategory(models.Model):
     class Meta:
         db_table = "M_ProductSubCategory"        
 
-
-class M_ItemsGroup(models.Model):
-
-    Name = models.CharField(max_length=500)
-    Sequence = models.DecimalField(max_digits=5, decimal_places=2)
-    isActive = models.BooleanField(default=False)
-    CreatedBy = models.IntegerField()
-    CreatedOn = models.DateTimeField(auto_now_add=True)
-    UpdatedBy = models.IntegerField()
-    UpdatedOn = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "M_ItemsGroup"
-
-
 class M_Units(models.Model):
     Name = models.CharField(max_length=500)
     CreatedBy = models.IntegerField()
@@ -459,7 +449,11 @@ class M_Units(models.Model):
 
     class Meta:
         db_table = "M_Units"
-
+        
+class M_MRPTypes(models.Model):
+    Name = models.CharField(max_length=500)
+    class Meta:
+        db_table = "M_MRPTypes"
 
 class M_Items(models.Model):
 
@@ -479,64 +473,74 @@ class M_Items(models.Model):
 
     class Meta:
         db_table = "M_Items"
-
-'''Table MC_ItemsGMMH details  - Items GST,MRP,Margin,HSNCode'''
-class MC_ItemsGMMH(models.Model):
-    
-    Item = models.ForeignKey(
-        M_Items, related_name='ItemGstDetails', on_delete=models.DO_NOTHING)
-    GSTPercentage = models.DecimalField(max_digits=10, decimal_places=2)
-    MRP = models.DecimalField(max_digits=20, decimal_places=2)
-    Margin = models.DecimalField(max_digits=20, decimal_places=2)
-    HSNCode = models.CharField(max_length=500)
-    FromDate = models.DateTimeField()
-    ToDate = models.DateTimeField()
-    CreatedBy = models.IntegerField(default=False)
-    CreatedOn = models.DateTimeField(auto_now_add=True)
-    UpdatedBy = models.IntegerField(default=False)
-    UpdatedOn = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "MC_ItemsGMMH"
         
-
-class MC_ItemUnits(models.Model):
-    Item = models.ForeignKey(
-        M_Items, related_name='ItemUnitsID', on_delete=models.DO_NOTHING)
-    UnitID = models.ForeignKey(
-        M_Units, related_name='UnitID', on_delete=models.DO_NOTHING)
-    BaseUnitQuantity = models.DecimalField(max_digits=5, decimal_places=3)
-    IsBase = models.IntegerField()
-    IsDefault = models.IntegerField()
-    IsSSUnit = models.IntegerField()
-    IsDeleted = models.BooleanField(default=False)
-
-    class Meta:
-        db_table = "MC_ItemUnits"
-                
-class MC_ItemsImages(models.Model):
-    ImageType= models.ForeignKey(M_ImageTypes, related_name='ImageType', on_delete=models.DO_NOTHING)
-    Item = models.ForeignKey(M_Items, related_name='ItemImagesdetails', on_delete=models.DO_NOTHING)
-    Item_pic = models.FileField()      
-
-
+        
 class MC_ItemCategoryDetails(models.Model):
-    # Name = models.CharField(max_length=500)
-    ProductCategory = models.ForeignKey(M_ProductCategory, related_name='MProductCategory', on_delete=models.DO_NOTHING)
-    Item = models.ForeignKey(M_Items, related_name='ProductItem', on_delete=models.DO_NOTHING)     
-    CreatedBy = models.IntegerField(default=False)
+    Item = models.ForeignKey(M_Items, related_name='ItemCategoryDetails', on_delete=models.CASCADE)  
+    CategoryType = models.ForeignKey(M_ProductCategoryType, related_name='CategoryType', on_delete=models.DO_NOTHING)
+    Category = models.ForeignKey(M_ProductCategory, related_name='Category', on_delete=models.DO_NOTHING)
+    SubCategory = models.ForeignKey(M_ProductSubCategory, related_name='SubCategory', on_delete=models.DO_NOTHING)
     CreatedOn = models.DateTimeField(auto_now_add=True)
-    UpdatedBy = models.IntegerField(default=False)
     UpdatedOn = models.DateTimeField(auto_now_add=True)
     class Meta:
         db_table = "MC_ItemCategoryDetails"
         
+        
+class MC_ItemUnits(models.Model):
+    Item = models.ForeignKey(
+        M_Items, related_name='ItemUnitDetails', on_delete=models.CASCADE)
+    UnitID = models.ForeignKey(
+        M_Units, related_name='UnitID', on_delete=models.DO_NOTHING)
+    BaseUnitQuantity = models.DecimalField(max_digits=5, decimal_places=3)
+    
+    IsDeleted = models.BooleanField(default=False)
 
-class M_ItemsShelfLife(models.Model):
+    class Meta:
+        db_table = "MC_ItemUnits"                
+
+class MC_ItemImages(models.Model):
+    ImageType= models.ForeignKey(M_ImageTypes, related_name='ImageType', on_delete=models.DO_NOTHING)
+    Item = models.ForeignKey(M_Items, related_name='ItemImagesDetails', on_delete=models.CASCADE)
+    Item_pic = models.TextField()
+    class Meta:
+        db_table = "MC_ItemImages" 
+
+class MC_ItemDivisions(models.Model):
+    Item = models.ForeignKey(M_Items, related_name='ItemDivisionDetails', on_delete=models.CASCADE)
+    Division = models.ForeignKey(M_Parties, related_name='Division', on_delete=models.DO_NOTHING)
+    class Meta:
+        db_table = "MC_ItemDivisions"
+
+'''Table MC_ItemsGMH details  - Items GST,MRP,HSNCode'''
+class MC_ItemMRP(models.Model):
+    
+    Item = models.ForeignKey(
+        M_Items, related_name='ItemMRPDetails', on_delete=models.CASCADE)
+    GSTPercentage = models.DecimalField(max_digits=10, decimal_places=2)
+    MRP = models.DecimalField(max_digits=20, decimal_places=2)
+    MRPType = models.ForeignKey(M_MRPTypes, related_name='MRPType', on_delete=models.DO_NOTHING)
+    HSNCode = models.CharField(max_length=500)
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedOn = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "MC_ItemMRP"
+        
+
+class MC_ItemMargin(models.Model):
+    Item = models.ForeignKey(
+        M_Items, related_name='ItemMarginDetails', on_delete=models.CASCADE)
+    Margin = models.DecimalField(max_digits=10, decimal_places=2)
+    PriceList = models.IntegerField(default=False)
+    class Meta:
+        db_table = "MC_ItemMargin"
+
+
+class M_ItemShelfLife(models.Model):
     Name = models.CharField(max_length=500)
     Days = models.IntegerField(default=False)
     class Meta:
-        db_table = "M_ItemsShelfLife"
+        db_table = "M_ItemShelfLife"
         
 class T_Orders(models.Model):
 
@@ -657,11 +661,47 @@ class TC_InvoiceItemBatches(models.Model):
         db_table = "TC_InvoiceItemBatches"
 
 
-class Abc(models.Model):
-    phone_number = models.CharField(max_length=12, unique=True)
-    otp = models.CharField(max_length=6, default=False)
-    Name = models.CharField(max_length=100)
-    SurName=models.CharField(max_length=100)
-    pincode=models.IntegerField()
+class M_Drivers(models.Model):
+    Name =  models.CharField(max_length=300)
+    DOB = models.DateField()
+    Address = models.CharField(max_length=500)
+    UID = models.CharField(max_length=500)
     class Meta:
+        db_table = "M_Drivers"
+    
+    
+class M_VehicleTypes(models.Model):
+    Name= models.CharField(max_length=300)
+    class Meta:
+        db_table = "M_VehicleTypes" 
+
+        
+class M_Vehicles(models.Model):
+    VehicleNumber= models.CharField(max_length=300)
+    Description = models.CharField(max_length=300)
+    Driver =models.ForeignKey(
+        M_Drivers, related_name='DriverName', on_delete=models.DO_NOTHING) 
+    VehicleType = models.ForeignKey(
+        M_VehicleTypes, related_name='VehicleType', on_delete=models.DO_NOTHING) 
+    class Meta:
+        db_table = "M_Vehicles"
+
+class MC_VehiclesDivisions(models.Model):
+    Vehicle = models.ForeignKey(M_Vehicles, related_name='VehicleDivisions', on_delete=models.DO_NOTHING) 
+    Division = models.ForeignKey(M_Parties, related_name='VDivision', on_delete=models.DO_NOTHING) 
+    class Meta:
+        db_table = "MC_VehiclesDivisions"
+
+                    
+        
+            
+class Abc(models.Model):
+   
+  file = models.FileField(blank=False, null=False)
+  remark = models.CharField(max_length=20)
+  picture = models.ImageField(upload_to='ItemMaster',blank=True)
+
+  class Meta:
         db_table = "Abc"
+        
+
