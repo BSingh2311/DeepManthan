@@ -6,7 +6,7 @@ from django.contrib.auth import authenticate
 from rest_framework_jwt.settings import api_settings
 from django.contrib.auth.models import update_last_login
 
-from  ..models import C_CompanyGroups, M_Employees, M_Parties, M_Roles, M_Users, MC_UserRoles
+from  ..models import C_CompanyGroups, M_Employees, M_Parties, M_Roles, M_Users, MC_UserRoles,C_Companies
 
 from rest_framework import serializers
 
@@ -138,14 +138,29 @@ class PartySerializer(serializers.ModelSerializer):
 class UserRolesSerializer(serializers.ModelSerializer):
     Role=RolesSerializer()
     Party=PartySerializer()
-    # Role= serializers.SlugRelatedField(read_only=True, slug_field='Name' )
-    
+   
     class Meta:
         model = MC_UserRoles
         fields= ['Role','Party']
         
-
-class M_employeesSerializer(serializers.ModelSerializer):   
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(UserRolesSerializer, self).to_representation(instance)
+        # if parent is None, overwrite
+        if not ret.get("Role", None):
+            ret["Role"] = {"id": None, "Name": None}
+            
+        if not ret.get("Party", None):
+            ret["Party"] = {"id": None, "Name": None}    
+        return ret     
+        
+class C_CompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = C_Companies
+        fields = '__all__'
+        
+class M_employeesSerializer(serializers.ModelSerializer): 
+    Company = C_CompanySerializer(read_only=True)
     class Meta:
         model = M_Employees
         fields = '__all__' 
@@ -219,7 +234,7 @@ class EmployeeSerializerForUserCreation(serializers.Serializer):
 class UserListSerializerforgetdata(serializers.ModelSerializer):
     class Meta:
         model = M_Users
-        fields = ['Employee']
+        fields = ['Employee','LoginName']
 
 class UserListSerializergetdata(serializers.Serializer):
     id = serializers.IntegerField()

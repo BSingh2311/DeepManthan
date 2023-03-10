@@ -1,14 +1,16 @@
 from asyncore import read
 from dataclasses import field
+from ..Views.V_CommFunction import *
 from ..models import *
 from rest_framework import serializers
+from django.db.models import Max
+
 
 
 class M_ItemsSerializer01(serializers.ModelSerializer):
     class Meta:
         model = M_Items
         fields = '__all__'
-
 
 class ItemsSerializerList(serializers.Serializer):
     id = serializers.IntegerField()
@@ -17,35 +19,36 @@ class ItemsSerializerList(serializers.Serializer):
     BaseUnitName = serializers.CharField(max_length=500)
     CompanyName = serializers.CharField(max_length=500)
     BarCode = serializers.CharField(max_length=500)
-   
-
-class MRPTypesSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = M_MRPTypes
-        fields = '__all__'
-
 
 class ImageTypesSerializer(serializers.ModelSerializer):
     class Meta:
         model = M_ImageTypes
         fields = '__all__'
 
+class ItemShelfLifeSerializer(serializers.ModelSerializer):
+     class Meta:
+        model = MC_ItemShelfLife
+        fields = ['Days', 'CreatedBy', 'UpdatedBy']
 
+class ItemGSTHSNSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = M_GSTHSNCode
+        fields = ['EffectiveDate', 'GSTPercentage', 'HSNCode', 'CreatedBy','Company', 'UpdatedBy','CommonID']
+    
 class ItemMarginSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MC_ItemMargin
-        fields = ['PriceList', 'Margin']
+        model = M_MarginMaster
+        fields = ['EffectiveDate', 'Margin', 'CreatedBy', 'UpdatedBy', 'Company', 'PriceList', 'Party','CommonID']
 
 class ItemMRPSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MC_ItemMRP
-        fields = ['GSTPercentage','MRPType', 'MRP', 'HSNCode']
-        
-        
+        model = M_MRPMaster
+        fields = ['EffectiveDate', 'MRP', 'CreatedBy','UpdatedBy','Company','Party', 'Division','CommonID']
+         
 class ItemDivisionsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MC_ItemDivisions
-        fields = ['Division']          
+        model = MC_PartyItems
+        fields = ['Party']          
         
 class ItemImagesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -55,17 +58,25 @@ class ItemImagesSerializer(serializers.ModelSerializer):
 class ItemUnitsSerializer(serializers.ModelSerializer):
     class Meta:
         model = MC_ItemUnits
-        fields = ['UnitID', 'BaseUnitQuantity' ]
+        fields = ['UnitID', 'BaseUnitQuantity','IsDeleted','IsBase','PODefaultUnit','SODefaultUnit','BaseUnitConversion']
+        
+               
+class ItemGroupDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MC_ItemGroupDetails
+        fields = ['GroupType', 'Group', 'SubGroup']        
         
 class ItemCategoryDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = MC_ItemCategoryDetails
-        fields = ['CategoryType', 'Category', 'SubCategory']
+        fields = ['CategoryType', 'Category']
 
 
 class ItemSerializer(serializers.ModelSerializer):
     
     ItemCategoryDetails = ItemCategoryDetailsSerializer(many=True)
+     
+    ItemGroupDetails = ItemGroupDetailsSerializer(many=True)
     
     ItemUnitDetails = ItemUnitsSerializer(many=True)
     
@@ -77,39 +88,55 @@ class ItemSerializer(serializers.ModelSerializer):
 
     ItemMarginDetails = ItemMarginSerializer(many=True)
     
+    ItemGSTHSNDetails = ItemGSTHSNSerializer(many=True)
+    
+    ItemShelfLife = ItemShelfLifeSerializer(many=True)
    
     class Meta:
         model = M_Items
-        fields = ['Name', 'ShortName', 'Sequence', 'Company', 'BaseUnitID', 'BarCode', 'isActive',
-                  'CreatedBy', 'UpdatedBy','ItemCategoryDetails', 'ItemUnitDetails', 'ItemImagesDetails', 'ItemDivisionDetails', 'ItemMRPDetails', 'ItemMarginDetails' ]
-
+        fields = ['Name', 'ShortName', 'Sequence', 'Company', 'BaseUnitID', 'BarCode', 'isActive','CanBeSold', 'CanBePurchase', 'BrandName', 'Tag', 'CreatedBy', 'UpdatedBy','ItemCategoryDetails','ItemGroupDetails', 'ItemUnitDetails', 'ItemImagesDetails', 'ItemDivisionDetails', 'ItemMRPDetails', 'ItemMarginDetails', 'ItemGSTHSNDetails', 'ItemShelfLife' ]
+       
     def create(self, validated_data):
         ItemCategorys_data = validated_data.pop('ItemCategoryDetails')
+        ItemGroups_data = validated_data.pop('ItemGroupDetails')
         ItemUnits_data = validated_data.pop('ItemUnitDetails')
         ItemImages_data = validated_data.pop('ItemImagesDetails')
         ItemDivisions_data = validated_data.pop('ItemDivisionDetails')
         ItemMRPs_data = validated_data.pop('ItemMRPDetails')
         ItemMargins_data = validated_data.pop('ItemMarginDetails')
+        ItemGSTHSNs_data = validated_data.pop('ItemGSTHSNDetails')
+        ItemShelfLifes_data = validated_data.pop('ItemShelfLife')
         ItemID= M_Items.objects.create(**validated_data)
         
         for ItemCategory_data in ItemCategorys_data:
             ItemCategorys = MC_ItemCategoryDetails.objects.create(Item=ItemID, **ItemCategory_data)
+        
+        for ItemGroup_data in ItemGroups_data:
+            ItemGroups = MC_ItemGroupDetails.objects.create(Item=ItemID, **ItemGroup_data)    
 
         for ItemUnit_data in ItemUnits_data:
-            ItemUnits = MC_ItemUnits.objects.create(Item=ItemID, **ItemUnit_data)
+        
+            ItemUnits = MC_ItemUnits.objects.create(Item=ItemID,**ItemUnit_data)
             
-        for ItemImage_data in ItemImages_data:
-            ItemImage = MC_ItemImages.objects.create(Item=ItemID, **ItemImage_data)
+        if ItemImages_data != '':
+            for ItemImage_data in ItemImages_data:
+                ItemImage = MC_ItemImages.objects.create(Item=ItemID, **ItemImage_data)
         
         for ItemDivision_data in ItemDivisions_data:
-            ItemDivision = MC_ItemDivisions.objects.create(Item=ItemID, **ItemDivision_data)    
+            ItemDivision = MC_PartyItems.objects.create(Item=ItemID, **ItemDivision_data)    
         
         for ItemMRP_data in ItemMRPs_data:
-            ItemGstMrp = MC_ItemMRP.objects.create(Item=ItemID, **ItemMRP_data)
+            ItemMrp = M_MRPMaster.objects.create(Item=ItemID, **ItemMRP_data)
         
         for ItemMargin_data in ItemMargins_data:
-            ItemMargin = MC_ItemMargin.objects.create(Item=ItemID, **ItemMargin_data)             
-
+            ItemMargin = M_MarginMaster.objects.create(Item=ItemID, **ItemMargin_data)
+        
+        for ItemGSTHSN_data in ItemGSTHSNs_data:
+            ItemGSTHSN = M_GSTHSNCode.objects.create(Item=ItemID, **ItemGSTHSN_data)
+        
+        for ItemShelfLife_data in ItemShelfLifes_data:
+            MItemShelfLife = MC_ItemShelfLife.objects.create(Item=ItemID, **ItemShelfLife_data)                      
+            
         return ItemID
     
     def update(self, instance, validated_data):
@@ -127,78 +154,158 @@ class ItemSerializer(serializers.ModelSerializer):
         instance.BarCode = validated_data.get(
             'BarCode', instance.BarCode)
         instance.isActive = validated_data.get(
-            'isActive', instance.isActive)    
+            'isActive', instance.isActive)
+        instance.CanBeSold = validated_data.get(
+            'CanBeSold', instance.CanBeSold)
+        instance.CanBePurchase = validated_data.get(
+            'CanBePurchase', instance.CanBePurchase)
+        instance.BrandName = validated_data.get(
+            'BrandName', instance.BrandName)
+        instance.Tag = validated_data.get(
+            'Tag', instance.Tag)
+            
         instance.save()
         
         for a in instance.ItemCategoryDetails.all():
             a.delete()
-        for b in instance.ItemUnitDetails.all():
-            b.delete()
-        for c in instance.ItemImagesDetails.all():
-            c.delete()
-        for d in instance.ItemDivisionDetails.all():
-            d.delete()
-        for e in instance.ItemMRPDetails.all():
-            e.delete()  
-        for f in instance.ItemMarginDetails.all():
-            f.delete()                    
         
+        for b in instance.ItemGroupDetails.all():
+            b.delete()
+                
+        for c in instance.ItemUnitDetails.all():
+            # print(c.id)
+            SetFlag=MC_ItemUnits.objects.filter(id=c.id).update(IsDeleted=1)
+            
+        if validated_data['ItemImagesDetails'] != '':    
+            for d in instance.ItemImagesDetails.all():
+                d.delete()
+            
+        for e in instance.ItemDivisionDetails.all():
+            e.delete()
+        
+        for f in instance.ItemShelfLife.all():
+            SetFlag=MC_ItemShelfLife.objects.filter(id=f.id).update(IsDeleted=1) 
+            
+        # for f in instance.ItemMRPDetails.all():
+        #     f.delete()  
+        # for g in instance.ItemMarginDetails.all():
+        #     g.delete()  
+                          
+        # for h in instance.ItemGSTHSNDetails.all():
+        #     h.delete()
         
         for ItemCategory_data in  validated_data['ItemCategoryDetails']:
             ItemCategorys = MC_ItemCategoryDetails.objects.create(Item=instance, **ItemCategory_data)
+        
+        for ItemGroup_data in  validated_data['ItemGroupDetails']:
+            ItemCategorys = MC_ItemGroupDetails.objects.create(Item=instance, **ItemGroup_data)    
 
         for ItemUnit_data in validated_data['ItemUnitDetails']:
             ItemUnits = MC_ItemUnits.objects.create(Item=instance, **ItemUnit_data)
             
-        for ItemImage_data in validated_data['ItemImagesDetails']:
-            ItemImage = MC_ItemImages.objects.create(Item=instance, **ItemImage_data)
+        if validated_data['ItemImagesDetails'] != '':
+            for ItemImage_data in validated_data['ItemImagesDetails']:
+                ItemImage = MC_ItemImages.objects.create(Item=instance, **ItemImage_data)
         
         for ItemDivision_data in validated_data['ItemDivisionDetails']:
-            ItemDivision = MC_ItemDivisions.objects.create(Item=instance, **ItemDivision_data)    
+            ItemDivision = MC_PartyItems.objects.create(Item=instance, **ItemDivision_data)    
         
         for ItemMRP_data in validated_data['ItemMRPDetails']:
-            ItemGstMrp = MC_ItemMRP.objects.create(Item=instance, **ItemMRP_data)
+            ItemGstMrp = M_MRPMaster.objects.create(Item=instance, **ItemMRP_data)
         
         for ItemMargin_data in validated_data['ItemMarginDetails']:
-            ItemMargin = MC_ItemMargin.objects.create(Item=instance, **ItemMargin_data)
+            ItemMargin = M_MarginMaster.objects.create(Item=instance, **ItemMargin_data)
         
-        return instance      
+        for ItemGSTHSN_data in validated_data['ItemGSTHSNDetails']:
+            ItemGSTHSN = M_GSTHSNCode.objects.create(Item=instance, **ItemGSTHSN_data) 
+        
+        for ItemShelfLife_data in validated_data['ItemShelfLife']:
+            MItemShelfLife = MC_ItemShelfLife.objects.create(Item=instance, **ItemShelfLife_data)       
+        
+        return instance 
+         
+class CompanySerializerSecond(serializers.ModelSerializer):
+    class Meta:
+        model = C_Companies
+        fields = ['id','Name'] 
 
 class UnitSerializerSecond(serializers.ModelSerializer):
     class Meta:
         model = M_Units
         fields = ['id','Name']
         
-        
-class ItemMarginSerializerSecond(serializers.ModelSerializer):
+class ItemGSTHSNSerializerSecond(serializers.ModelSerializer):
+    Company = CompanySerializerSecond(read_only=True)
     class Meta:
-        model = MC_ItemMargin
-        fields = ['id','PriceList', 'Margin']
+        model = M_GSTHSNCode
+        fields = ['id','EffectiveDate', 'GSTPercentage', 'HSNCode','Company','IsDeleted', 'CreatedBy', 'UpdatedBy']
 
-class ItemMRPSerializerSecond(serializers.ModelSerializer):
-    MRPType = MRPTypesSerializer(read_only=True)
-    class Meta:
-        model = MC_ItemMRP
-        fields = ['id','GSTPercentage','MRPType', 'MRP', 'HSNCode']        
+class ItemShelfLifeSerializerSecond(serializers.ModelSerializer):
+     class Meta:
+        model = MC_ItemShelfLife
+        fields = ['id','Days', 'CreatedBy', 'UpdatedBy','IsDeleted']
+                
+class PriceListSerializerSecond(serializers.ModelSerializer):
+     class Meta:
+        model = M_PriceList
+        fields = ['id','Name']
+    
+
+
         
 class PartiesSerializerSecond(serializers.ModelSerializer):
     class Meta:
         model = M_Parties
-        fields = ['id','Name']
+        fields = ['id','Name'] 
+                      
+class ItemMarginSerializerSecond(serializers.ModelSerializer):
+    Company = CompanySerializerSecond(read_only=True)
+    Party = PartiesSerializerSecond(read_only=True)
+    PriceList  = PriceListSerializerSecond(read_only=True)
+    class Meta:
+        model = M_MarginMaster
+        fields = ['id','EffectiveDate', 'Margin', 'CreatedBy', 'UpdatedBy', 'Company', 'PriceList', 'Party','IsDeleted']
+        
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(ItemMarginSerializerSecond, self).to_representation(instance)
+        # if parent is None, overwrite
          
+        if not ret.get("Party", None):
+            ret["Party"] = {"id": None, "Name": None}    
+        return ret     
+        
 class ItemDivisionsSerializerSecond(serializers.ModelSerializer):
+    Party = PartiesSerializerSecond(read_only=True)
+    class Meta:
+        model = MC_PartyItems
+        fields = ['id','Party']
+        
+class ItemMRPSerializerSecond(serializers.ModelSerializer):
+    Company = CompanySerializerSecond(read_only=True)
+    Party = PartiesSerializerSecond(read_only=True)
     Division = PartiesSerializerSecond(read_only=True)
     class Meta:
-        model = MC_ItemDivisions
-        fields = ['id','Division']
-                   
+        model = M_MRPMaster
+        fields = ['id','EffectiveDate', 'MRP', 'CreatedBy','UpdatedBy','Company','Party', 'Division','IsDeleted']        
+    
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(ItemMRPSerializerSecond, self).to_representation(instance)
+        # if parent is None, overwrite
+        if not ret.get("Division", None):
+            ret["Division"] = {"id": None, "Name": None}
+            
+        if not ret.get("Party", None):
+            ret["Party"] = {"id": None, "Name": None}    
+        return ret  
+                 
 class ImageTypesSerializer(serializers.ModelSerializer):
     class Meta:
         model = M_ImageTypes
         fields = ['id','Name']
         
 class ItemImagesSerializerSecond(serializers.ModelSerializer):
-    
     ImageType = ImageTypesSerializer(read_only=True)
     class Meta:
         model = MC_ItemImages
@@ -208,50 +315,73 @@ class ItemUnitsSerializerSecond(serializers.ModelSerializer):
     UnitID = UnitSerializerSecond(read_only=True)
     class Meta:
         model = MC_ItemUnits
-        fields = ['id','UnitID', 'BaseUnitQuantity' ]
-        
-class ItemSubCategorySerializerSecond(serializers.ModelSerializer):
+        fields = ['id','UnitID', 'BaseUnitQuantity','IsDeleted','IsBase','PODefaultUnit','SODefaultUnit','BaseUnitConversion']
+
+class ItemSubGroupSerializerSecond(serializers.ModelSerializer):
     class Meta:
-        model = M_ProductSubCategory
+        model = MC_SubGroup
         fields = ['id','Name']
+
+class ItemGroupSerializerSecond(serializers.ModelSerializer):
+    class Meta:
+        model = M_Group
+        fields = ['id','Name']
+        
+class ItemGroupTypeSerializerSecond(serializers.ModelSerializer):
+    class Meta:
+        model = M_GroupType
+        fields = ['id','Name']        
+        
 
 class ItemCategorySerializerSecond(serializers.ModelSerializer):
     class Meta:
-        model = M_ProductCategory
+        model = M_Category
         fields = ['id','Name']
         
 class ItemCategoryTypeSerializerSecond(serializers.ModelSerializer):
     class Meta:
-        model = M_ProductCategoryType
+        model = M_CategoryType
         fields = ['id','Name']
 
+class ItemGroupDetailsSerializerSecond(serializers.ModelSerializer):
+    SubGroup = ItemSubGroupSerializerSecond(read_only=True)
+    Group = ItemGroupSerializerSecond(read_only=True)
+    GroupType = ItemGroupTypeSerializerSecond(read_only=True)
+    class Meta:
+        model = MC_ItemCategoryDetails
+        fields = ['id','GroupType','Group','SubGroup']
+        
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(ItemGroupDetailsSerializerSecond, self).to_representation(instance)
+        # if parent is None, overwrite
+        if not ret.get("SubGroup", None):
+            ret["SubGroup"] = {"id": None, "Name": None}  
+        return ret
+
 class ItemCategoryDetailsSerializerSecond(serializers.ModelSerializer):
-    SubCategory = ItemSubCategorySerializerSecond(read_only=True)
+   
     Category = ItemCategorySerializerSecond(read_only=True)
     CategoryType = ItemCategoryTypeSerializerSecond(read_only=True)
     class Meta:
         model = MC_ItemCategoryDetails
-        fields = ['id','Category','CategoryType','SubCategory']
+        fields = ['id','CategoryType','Category']
 
-class CompanySerializerSecond(serializers.ModelSerializer):
-    class Meta:
-        model = C_Companies
-        fields = ['id','Name']
-    
 class ItemSerializerSecond(serializers.ModelSerializer):
-    BaseUnitID = UnitSerializerSecond()
     Company=CompanySerializerSecond()
+    BaseUnitID = UnitSerializerSecond()
     ItemCategoryDetails = ItemCategoryDetailsSerializerSecond(read_only=True,many=True)
+    ItemGroupDetails = ItemGroupDetailsSerializerSecond(read_only=True,many=True)
     ItemUnitDetails =ItemUnitsSerializerSecond(many=True)
     ItemImagesDetails = ItemImagesSerializerSecond(read_only=True,many=True)
     ItemDivisionDetails = ItemDivisionsSerializerSecond(many=True)
     ItemMRPDetails = ItemMRPSerializerSecond(many=True)
     ItemMarginDetails = ItemMarginSerializerSecond(many=True)
-   
+    ItemGSTHSNDetails = ItemGSTHSNSerializerSecond(many=True)
+    ItemShelfLife = ItemShelfLifeSerializerSecond(many=True)
     
     class Meta:
         model = M_Items
-        # fields = ['id','Name', 'ShortName', 'Sequence', 'Company', 'BaseUnitID', 'BarCode', 'isActive', 'CreatedBy', 'UpdatedBy','ItemCategoryDetails']
         fields='__all__'
     
     

@@ -1,7 +1,9 @@
+from asyncio.windows_events import NULL
+from contextlib import nullcontext
 import re
 from django.http import JsonResponse
 
-from ..Serializer.S_Companies import C_CompanySerializer2
+from ..Serializer.S_Companies import C_CompanySerializer
 
 from ..Serializer.S_Employees import *
 from ..models import *
@@ -40,7 +42,7 @@ class UserRegistrationView(CreateAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            status_code = status.HTTP_201_CREATED
+            status_code = 200
             response = {
                 'StatusCode': status_code,
                 'Status': True,
@@ -62,23 +64,35 @@ class UserListView(CreateAPIView):
     authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
-    def get(self, request, id=0):
+    def post(self, request):
         try:
             with transaction.atomic():
-                PageListData = list()
-                Usersdata = M_Users.objects.all()
+                Logindata = JSONParser().parse(request)
+                UserID = Logindata['UserID']   
+                RoleID=  Logindata['RoleID']  
+                CompanyID=Logindata['CompanyID']        
+                
+                if (RoleID == 1):
+                    Usersdata = M_Users.objects.all()
+                else:                
+                    Usersdata = M_Users.objects.filter(CreatedBy=UserID)    
+                
                 if Usersdata.exists():
-                    Usersdata_Serializer = UserListSerializer(
-                        Usersdata, many=True).data
+                    Usersdata_Serializer = UserListSerializer(Usersdata, many=True).data
                     UserData = list()
+                    
+                   
                     for a in Usersdata_Serializer:
-                        # RoleData = list()
-                        # for b in a["UserRole"]:
-                        #     RoleData.append({
-                        #         'Role': b['Role']['id'],
-                        #         'Name': b['Role']['Name'],
+                        RoleData = list()
+                        for b in a["UserRole"]:
+                            RoleData.append({
+                                'Party': b['Party']['id'],
+                                'PartyName': b['Party']['Name'],
+                                'Role': b['Role']['id'],
+                                'RoleName': b['Role']['Name'],
 
-                        #     })
+                            })
+                        
                         UserData.append({
                             'id': a["id"],
                             'LoginName': a["LoginName"],
@@ -95,13 +109,15 @@ class UserListView(CreateAPIView):
                             'UpdatedOn': a["UpdatedOn"],
                             'Employee': a["Employee"]["id"],
                             'EmployeeName': a["Employee"]["Name"],
-                            # 'UserRole': RoleData,
+                            'CompanyName': a["Employee"]["Company"]["Name"],
+                            'UserRole': RoleData,
 
                         })
+                       
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': UserData})
                 return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':  'Records Not available', 'Data': []})
-        except Exception:
-            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  'Execution Error', 'Data': []})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
 
 class UserListViewSecond(CreateAPIView):
@@ -120,7 +136,7 @@ class UserListViewSecond(CreateAPIView):
                     UserData = list()
                     for a in Usersdata_Serializer:
                         RoleData = list()
-                        UserPartiesQuery = MC_UserRoles.objects.raw('''SELECT mc_userroles.id,mc_userroles.Party_id ,m_parties.Name PartyName FROM mc_userroles join m_parties on m_parties.id= mc_userroles.Party_id Where mc_userroles.User_id=%s group by Party_id ''',[id])
+                        UserPartiesQuery = MC_UserRoles.objects.raw('''SELECT mc_userroles.id,mc_userroles.Party_id ,m_parties.Name PartyName FROM mc_userroles left join m_parties on m_parties.id= mc_userroles.Party_id Where mc_userroles.User_id=%s group by Party_id ''',[id])
                         if not UserPartiesQuery:
                             return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Party Not Found', 'Data':[] })    
                         else:    
@@ -128,9 +144,13 @@ class UserListViewSecond(CreateAPIView):
                             # return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data':SingleGetUserListUserPartiesSerializerData})  
                             for b in SingleGetUserListUserPartiesSerializerData:
                                 PartyID=b['Party_id']
-                                # return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data':PartyID})  
-                                PartyRoles = MC_UserRoles.objects.raw('''SELECT mc_userroles.id,mc_userroles.Role_id ,m_roles.Name RoleName FROM mc_userroles join m_roles on m_roles.id= mc_userroles.Role_id Where mc_userroles.Party_id=%s and  mc_userroles.User_id=%s ''',([PartyID],[id]))
                                 
+                                if PartyID is None:
+                                    PartyRoles = MC_UserRoles.objects.raw('''SELECT mc_userroles.id,mc_userroles.Role_id ,m_roles.Name RoleName FROM mc_userroles join m_roles on m_roles.id= mc_userroles.Role_id Where mc_userroles.Party_id is null and  mc_userroles.User_id=%s ''',([id]))
+                                else:    
+                                # return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'ccccccccccc', 'Data':PartyID})  
+                                    PartyRoles = MC_UserRoles.objects.raw('''SELECT mc_userroles.id,mc_userroles.Role_id ,m_roles.Name RoleName FROM mc_userroles join m_roles on m_roles.id= mc_userroles.Role_id Where mc_userroles.Party_id=%s and  mc_userroles.User_id=%s ''',([PartyID],[id]))
+                               
                                 SingleGetUserListUserPartyRoleData = SingleGetUserListUserPartyRoleSerializer(PartyRoles,  many=True).data
                                 # return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data':SingleGetUserListUserPartyRoleData})    
                                 PartyRoleData = list()
@@ -350,7 +370,7 @@ NOT IN (SELECT Employee_id From m_users) ''')
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  'Exception Found', 'Data': []})
 
 
-class GerUserDetialsView(APIView):
+class GetUserDetailsView(APIView):
 
     permission_classes = (IsAuthenticated,)
     authentication__Class = JSONWebTokenAuthentication
@@ -365,13 +385,22 @@ class GerUserDetialsView(APIView):
         CompanyID = M_EmployeesSerializerforgetdata(company, many=True).data
 
         company_Group = C_Companies.objects.filter(id=CompanyID[0]['Company'])
-        CompanyGroupID = C_CompanySerializer2(company_Group, many=True).data
+        CompanyGroupID = C_CompanySerializer(company_Group, many=True).data
+
+        request.session['UserID'] = UserId
+        request.session['UserName'] = EmployeeID[0]["LoginName"]
+        request.session['EmployeeID'] = EmployeeID[0]["Employee"]
+        request.session['CompanyID'] = CompanyID[0]["Company"]
+        request.session['CompanyGroup'] = CompanyGroupID[0]["CompanyGroup"]
+        print(request.session.get('UserName'))
 
         a = list()
         a.append({
             "UserID": UserId,
+            "UserName":EmployeeID[0]["LoginName"],
             "EmployeeID": EmployeeID[0]["Employee"],
             "CompanyID": CompanyID[0]["Company"],
+            "IsSCMCompany": CompanyGroupID[0]["IsSCM"],
             "CompanyGroup": CompanyGroupID[0]["CompanyGroup"]
 
         })
