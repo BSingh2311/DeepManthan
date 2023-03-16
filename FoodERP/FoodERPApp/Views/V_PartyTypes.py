@@ -8,24 +8,58 @@ from ..Serializer.S_PartyTypes import *
 from ..models import *
 
 
-class PartyTypeView(CreateAPIView):
+class PartyTypeListView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
     authentication__Class = JSONWebTokenAuthentication
-
+    
     @transaction.atomic()
-    def get(self, request):
+    def post(self, request):
         try:
             with transaction.atomic():
-                PartyTypedata = M_PartyType.objects.all()
-                if PartyTypedata.exists():
-                    PartyTypedata_serializer = PartyTypeSerializer(PartyTypedata, many=True)
-                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message': '','Data': PartyTypedata_serializer.data })
-                return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Party Type Not available', 'Data': []})    
+                PartyType_Data = JSONParser().parse(request)
+             
+                UserID = PartyType_Data['UserID']   
+                RoleID=  PartyType_Data['RoleID']  
+                CompanyID = PartyType_Data['CompanyID']  
+                IsSCM=PartyType_Data['IsSCMCompany'] 
+                id=PartyType_Data['id'] 
+                
+                
+                if (id == 0):
+                    
+                    if(IsSCM == 0):
+                       
+                        query = M_PartyType.objects.filter(Company=CompanyID)
+                        p=0
+                    else:
+                       
+                        query = M_PartyType.objects.filter(IsSCM=IsSCM,Company=CompanyID)
+                        print(str(query.query))
+                        p=0
+                else:    
+                    
+                    query = M_PartyType.objects.filter(id=id)
+                    p=1
+                
+                if not query:
+                    return JsonResponse({'StatusCode': 204, 'Status': True,'Message': 'Party Type Not available', 'Data':[]})
+                else:    
+                    PartyTypes_Serializer = PartyTypeSerializer(query, many=True).data
+                    if p==0:
+                        data=PartyTypes_Serializer
+                    else:
+                        data=PartyTypes_Serializer[0]    
+                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message': '','Data': data})   
         except Exception as e:
                 return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
 
+class PartyTypeView(CreateAPIView):
+    
+    permission_classes = (IsAuthenticated,)
+    authentication__Class = JSONWebTokenAuthentication
+    
     @transaction.atomic()
     def post(self, request):
         try:
@@ -38,46 +72,6 @@ class PartyTypeView(CreateAPIView):
                 else:
                     transaction.set_rollback(True)
                     return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':  PartyTypedata_Serializer.errors, 'Data':[]})
-        except Exception as e:
-                return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
-            
-
-
-class PartyTypeViewSecond(CreateAPIView):
-    
-    permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
-    
-    @transaction.atomic()
-    def get(self, request, id=0,IsSCM=0):
-        try:
-            with transaction.atomic():
-                print(id)
-                if (id == '0'):
-                   
-                    if(IsSCM == '0'):
-                       
-                        query = M_PartyType.objects.all()
-                        p=0
-                    else:
-                       
-                        query = M_PartyType.objects.filter(IsSCM=IsSCM) 
-                        p=0
-                else:    
-                   
-                    query = M_PartyType.objects.filter(id=id)
-                    p=1
-                
-               
-                if not query:
-                    return JsonResponse({'StatusCode': 204, 'Status': True,'Message': 'Party Type Not available', 'Data':[]})
-                else:    
-                    PartyTypes_Serializer = PartyTypeSerializer(query, many=True).data
-                    if p==0:
-                        data=PartyTypes_Serializer
-                    else:
-                        data=PartyTypes_Serializer[0]    
-                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message': '','Data': data})   
         except Exception as e:
                 return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
             
@@ -113,4 +107,7 @@ class PartyTypeViewSecond(CreateAPIView):
             return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':'Party Type used in another table', 'Data': []})   
 
 
+    
+  
+                
         

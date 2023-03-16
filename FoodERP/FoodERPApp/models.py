@@ -7,17 +7,7 @@ from activity_log.models import UserMixin
 def make_extra_data(request, response):
     return str(request.META)
    
-class M_PartyType(models.Model):
-    Name = models.CharField(max_length=100)
-    IsSCM =models.BooleanField(default=False)
-    IsDivision = models.BooleanField(default=False) 
-    CreatedBy = models.IntegerField()
-    CreatedOn = models.DateTimeField(auto_now_add=True)
-    UpdatedBy = models.IntegerField()
-    UpdatedOn = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        db_table = 'M_PartyType'
  
 class C_CompanyGroups(models.Model):
 
@@ -53,6 +43,20 @@ class C_Companies(models.Model):
 
     class Meta:
         db_table = "C_Companies"
+        
+class M_PartyType(models.Model):
+    Name = models.CharField(max_length=100)
+    IsSCM =models.BooleanField(default=False)
+    IsDivision = models.BooleanField(default=False) 
+    CreatedBy = models.IntegerField()
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField()
+    UpdatedOn = models.DateTimeField(auto_now=True)
+    Company = models.ForeignKey(C_Companies, related_name='PartyTypeCompany',on_delete=models.PROTECT)
+    IsRetailer = models.BooleanField(default=False)
+ 
+    class Meta:
+        db_table = 'M_PartyType'
         
 
 class M_GeneralMaster(models.Model):
@@ -136,6 +140,8 @@ class M_Parties(models.Model):
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField()
     UpdatedOn = models.DateTimeField(auto_now=True)
+    # IsRetailer = models.BooleanField(default=False)
+    # IsSCM = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'M_Parties'
@@ -164,6 +170,7 @@ class M_EmployeeTypes(models.Model):
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField()
     UpdatedOn = models.DateTimeField(auto_now=True)
+    Company = models.ForeignKey(C_Companies,related_name='Emp_Company',on_delete=models.PROTECT)
 
     class Meta:
         db_table = "M_EmployeeTypes"
@@ -587,15 +594,13 @@ class M_Drivers(models.Model):
     class Meta:
         db_table = "M_Drivers"
     
-    
 class M_VehicleTypes(models.Model):
     Name= models.CharField(max_length=300)
     Party = models.ForeignKey(M_Parties, related_name='VTParty', on_delete=models.PROTECT)
     Company = models.ForeignKey(C_Companies, related_name='VTCompany', on_delete=models.PROTECT)
     class Meta:
         db_table = "M_VehicleTypes" 
-
-        
+    
 class M_Vehicles(models.Model):
     VehicleNumber= models.CharField(max_length=300)
     Description = models.CharField(max_length=300)
@@ -620,7 +625,6 @@ class M_Items(models.Model):
         M_Units, related_name='BaseUnitID', on_delete=models.DO_NOTHING)
     BarCode = models.CharField(max_length=500,null=True,blank=True) 
     isActive = models.BooleanField(default=False)
-  
     CanBeSold = models.BooleanField(default=False)
     CanBePurchase = models.BooleanField(default=False)
     BrandName = models.CharField(max_length=500,null=True,blank=True)
@@ -653,7 +657,6 @@ class MC_ItemGroupDetails(models.Model):
     class Meta:
         db_table = "MC_ItemGroupDetails"
 
-     
 class MC_ItemUnits(models.Model):
     Item = models.ForeignKey(
         M_Items, related_name='ItemUnitDetails', on_delete=models.CASCADE)
@@ -1435,6 +1438,7 @@ class TC_PurchaseReturnItems(models.Model):
 class M_Bank(models.Model):
     Name = models.CharField(max_length=500)
     Party = models.ForeignKey(M_Parties, related_name='PartyBank', on_delete=models.PROTECT)
+    Company = models.ForeignKey(C_Companies, related_name='CompanyBank', on_delete=models.PROTECT)
     IFSC = models.CharField(max_length=500,blank=True, null=True)
     BranchName = models.CharField(max_length=500)
     AccountNo = models.CharField(max_length=500,blank=True, null=True)

@@ -1,5 +1,7 @@
 from django.urls import re_path as url
 
+
+
 from .Views.V_ProductionReIssue import *
 
 from .Views.V_Production import *
@@ -100,6 +102,10 @@ from .Views.V_LoadingSheet import *
 
 from .Views.V_Salesman import *
 
+from .Views.V_BankMaster import *
+
+from .Views.V_PartyWiseUpdate import *
+
 urlpatterns = [
     
     # Master APIs IN Projects Add Page ,List Page
@@ -157,8 +163,11 @@ urlpatterns = [
             url(r'Employees/([0-9]+)$', M_EmployeesViewSecond.as_view()),
             url(r'Employees$', M_EmployeesView.as_view()),
             url(r'EmployeesFilter$', M_EmployeesFilterView.as_view()),
+           
+#EmployeeTypes           
             url(r'EmployeeTypes/([0-9]+)$', M_EmployeeTypeViewSecond.as_view()),
             url(r'EmployeeTypes$', M_EmployeeTypeView.as_view()),
+            url(r'EmployeeTypesFilter$', M_EmployeeTypeFilterView.as_view()),
     
 # Order All APIs
             url(r'TestOrderget/([0-9]+)$',TestOrdersView.as_view()),
@@ -207,13 +216,16 @@ urlpatterns = [
             url(r'Invoice$', InvoiceView.as_view()),
             url(r'GetOrderDetails$', OrderDetailsForInvoice.as_view()),
             url(r'InvoicesFilter$', InvoiceListFilterView.as_view()),
-            url(r'MultipleInvoices$',MultipleInvoicesView.as_view()),
+            
             
 
 #Loading Sheet All APIs
             url(r'LoadingSheet/([0-9]+)$', LoadingSheetView.as_view()),
             url(r'LoadingSheet$', LoadingSheetView.as_view()),
             url(r'LoadingSheetList$', LoadingSheetListView.as_view()),
+            url(r'LoadingSheetInvoices$', LoadingSheetInvoicesView.as_view()),
+            url(r'LoadingSheetPrint/([0-9]+)$',LoadingSheetPrintView.as_view()),
+            url(r'MultipleInvoices/([0-9]+)$',MultipleInvoicesView.as_view()),
             
     
 # GRN All API's
@@ -263,6 +275,11 @@ urlpatterns = [
             url(r'ProductionReIssue/([0-9]+)$',ProductionReIssueViewSecond.as_view()),
             url(r'ProductionMaterialIssueItem$',MaterialIssueItemsView.as_view()),
             url(r'ProductionReIsssueFilter$',ProductionReIsssueFilter.as_view()),
+            
+# Party_Type
+            url(r'PartyTypes/([0-9]+)$', PartyTypeView.as_view()),
+            url(r'PartyTypes$', PartyTypeView.as_view()),
+            url(r'PartyTypesFilter$', PartyTypeListView.as_view()),
 
 # Parties=================================================================================
             url(r'States$',M_StateView.as_view()),
@@ -271,11 +288,8 @@ urlpatterns = [
             url(r'PartiesFilter$', M_PartiesFilterView.as_view()),
             url(r'Divisions/([0-9]+)$', DivisionsView.as_view()),
             url(r'PriceList/([0-9]+)$', PriceListViewSecond.as_view()),
-            url(r'PriceList$', PriceListView.as_view()),
-            url(r'PartyTypes/([0-9]+)/([0-9]+)$', PartyTypeViewSecond.as_view()),
-            url(r'PartyTypes$', PartyTypeView.as_view()),
+            url(r'PriceList$', PriceListView.as_view()),        
             url(r'ImageTypes$', M_ImageTypesView.as_view()),
-           
             url(r'GetVendorSupplierCustomer$',GetVendorSupplierCustomerListView.as_view()),
             # url(r'GetSupplier/([0-9]+)$',GetSupplierListView.as_view()),
             # url(r'GetCustomer/([0-9]+)$',GetCustomerView.as_view()),
@@ -288,6 +302,10 @@ urlpatterns = [
             url(r'PartySubParty/([0-9]+)$',PartySubPartyViewSecond.as_view()),
             url(r'PartySubParty$',PartySubPartyView.as_view()),
             url(r'PartySubPartyList$',PartySubPartyListFilterView.as_view()),
+            url(r'RetailerandSSDD$',RetailerandSSDDView.as_view()),
+            
+# PartyWiseUpdate            
+            url(r'PartyWiseUpdate$', PartyWiseUpdateView.as_view()),
 
 # Driver 
             url(r'DriverFilter$', DriverViewList.as_view()),
@@ -309,7 +327,7 @@ urlpatterns = [
             
 
 # Salesman 
-            url(r'SalesmanList$', SalesmanListView.as_view()), 
+            url(r'SalesmanFilter$', SalesmanListView.as_view()), 
             url(r'Salesman/([0-9]+)$', SalesmanView.as_view()), 
             url(r'Salesman$', SalesmanView.as_view()),             
 
@@ -393,5 +411,10 @@ urlpatterns = [
             url(r'PageMasterForRoleAccess/([0-9]+)$', PagesMasterForRoleAccessView.as_view()),
             url(r'CopyRoleAccessabc$',CopyRoleAccessView.as_view()),
             url(r'RegenrateToken$', RegenrateToken.as_view()),
+
+# BankMaster
+            url(r'Bank/([0-9]+)$', BankView.as_view()),
+            url(r'Bank$', BankView.as_view()),
+            url(r'BankFilter$', BankListView.as_view())
      
 ]
