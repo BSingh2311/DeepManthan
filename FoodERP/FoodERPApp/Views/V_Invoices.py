@@ -1,11 +1,10 @@
 from django.http import JsonResponse
-from rest_framework.generics import CreateAPIView, RetrieveAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_jwt.authentication import JSONWebTokenAuthentication
-from django.db import IntegrityError, connection, transaction
+from django.db import transaction
 from rest_framework.parsers import JSONParser
 
-from ..Serializer.S_MaterialIssue import obatchwiseStockSerializerfordelete
 from ..Views.V_TransactionNumberfun import GetMaxNumber, GetPrifix
 from ..Serializer.S_Invoices import *
 from ..Serializer.S_Orders import *
@@ -228,7 +227,7 @@ class InvoiceViewSecond(CreateAPIView):
                 if InvoiceQuery.exists():
                     InvoiceSerializedata = InvoiceSerializerSecond(
                         InvoiceQuery, many=True).data
-                    # return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': OrderSerializedata})
+                    # return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': InvoiceSerializedata})
                     InvoiceData = list()
                     for a in InvoiceSerializedata:
                         InvoiceItemDetails = list()
@@ -259,6 +258,24 @@ class InvoiceViewSecond(CreateAPIView):
                                 "BatchDate": b['BatchDate'],
                             })
                             
+                            InvoiceReferenceDetails = list()
+                            for d in a['InvoicesReferences']:
+                                InvoiceReferenceDetails.append({
+                                    "Invoice": d['Invoice'],
+                                    "Order": d['Order']['id'],
+                                    "FullOrderNumber": d['Order']['FullOrderNumber'],
+                                })
+                            
+                        DefCustomerAddress = ''  
+                        for ad in a['Customer']['PartyAddress']:
+                            if ad['IsDefault'] == True :
+                                DefCustomerAddress = ad['Address']
+                                
+                        DefPartyAddress = ''
+                        for x in a['Party']['PartyAddress']:
+                            if x['IsDefault'] == True :
+                                DefPartyAddress = x['Address']
+                    
                         InvoiceData.append({
                             "id": a['id'],
                             "InvoiceDate": a['InvoiceDate'],
@@ -272,15 +289,21 @@ class InvoiceViewSecond(CreateAPIView):
                             "Party": a['Party']['id'],
                             "PartyName": a['Party']['Name'],
                             "PartyGSTIN": a['Party']['GSTIN'],
+                            "PartyFSSAINo": a['Party']['PartyAddress'][0]['FSSAINo'],
+                            "CustomerFSSAINo": a['Customer']['PartyAddress'][0]['FSSAINo'],
+                            "PartyState": a['Party']['State']['Name'],
+                            "CustomerState": a['Customer']['State']['Name'],
+                            "PartyAddress": DefPartyAddress,                            
+                            "CustomerAddress": DefCustomerAddress,
+                            "CreatedOn" : a['CreatedOn'],
                             "InvoiceItems": InvoiceItemDetails,
+                            "InvoicesReferences": InvoiceReferenceDetails,
+                                                        
                         })
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': InvoiceData[0]})
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Order Data Not available ', 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
-    
-    
-    
 
     @transaction.atomic()
     def delete(self, request, id=0):

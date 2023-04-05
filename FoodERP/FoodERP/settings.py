@@ -16,11 +16,8 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-t#s!16-8)sy91!+@q2hmdt_yclkuldlx=*g5aw_cb&^+rzr@ty'
 
@@ -88,10 +85,10 @@ DATABASE_APPS_MAPPING = {'activity_log': 'logs'}
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'chitalescm20230310',
+        'NAME': 'chitalescm2023',
         'USER': 'pk',
         'PASSWORD': 'P@ssw0rd',
-        'HOST': '192.168.1.114',
+        'HOST': '10.1.201.19',
         'PORT': '3306'
     }
     ,
@@ -100,10 +97,14 @@ DATABASES = {
         'NAME': 'transactionlogdb',
         'USER': 'pk',
         'PASSWORD': 'P@ssw0rd',
-        'HOST': '192.168.1.114',
+        'HOST': '10.1.201.19',
         'PORT': '3306'
     }
 }
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
 
 ACTIVITYLOG_AUTOCREATE_DB = True
 # Log anonymous actions?

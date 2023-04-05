@@ -1,9 +1,8 @@
-from typing import Concatenate
 from django.http import JsonResponse
-from rest_framework.generics import CreateAPIView, RetrieveAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_jwt.authentication import JSONWebTokenAuthentication
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 from ..Views.V_TransactionNumberfun import GetMaxNumber, GetPrifix
 from ..Serializer.S_Orders import *
@@ -11,6 +10,7 @@ from ..Serializer.S_Items import *
 from ..Serializer.S_PartyItems import *
 from ..Serializer.S_Bom import *
 from ..Serializer.S_Challan import *
+from ..Serializer.S_Invoices import *
 from django.db.models import Sum
 from ..models import *
 
@@ -120,7 +120,42 @@ class OrderListFilterViewSecond(CreateAPIView):
                 OrderType = Orderdata['OrderType']
                 
                 d = date.today()
-                if(OrderType == 1): #OrderType -1 PO Order
+                
+                if(OrderType == 3):# OrderType - 3 for GRN STP Showing Invoices for Making GRN
+                    if(Supplier == ''):
+                        query = T_Invoices.objects.filter(InvoiceDate__range=[FromDate, ToDate], Customer_id=Customer)
+                    else:
+                        query = T_Invoices.objects.filter(InvoiceDate__range=[FromDate, ToDate], Customer_id=Customer,Party=Supplier)    
+                    # return JsonResponse({'query': str(Orderdata.query)})
+                    if query:
+                        Invoice_serializer = InvoiceSerializerSecond(query, many=True).data
+                        # return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':'','Data': Order_serializer})
+                        InvoiceListData = list()
+                        for a in Invoice_serializer:
+                            InvoiceListData.append({
+                                "id": a['id'],
+                                "OrderDate": a['InvoiceDate'],
+                                "FullOrderNumber": a['FullInvoiceNumber'],
+                                "DeliveryDate": "",
+                                "CustomerID": a['Customer']['id'],
+                                "Customer": a['Customer']['Name'],
+                                "SupplierID": a['Party']['id'],
+                                "Supplier": a['Party']['Name'],
+                                "OrderAmount": a['GrandTotal'],
+                                "Description": "",
+                                "OrderType" : "",
+                                "POType" : "",
+                                "BillingAddress": "",
+                                "ShippingAddress": "",
+                                "CreatedBy": a['CreatedBy'],
+                                "CreatedOn": a['CreatedOn'],
+                                "Inward": "",
+                                "Percentage" : "",
+                            })
+                        return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': InvoiceListData})
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Record Not Found', 'Data': []})
+
+                elif(OrderType == 1): #OrderType -1 PO Order
                     if(Supplier == ''):
                         query = T_Orders.objects.filter(OrderDate__range=[FromDate, ToDate], Customer_id=Customer,  OrderType=1)
                         queryForOpenPO = T_Orders.objects.filter(POFromDate__lte=d, POToDate__gte=d, Customer_id=Customer, OrderType=1)
@@ -210,6 +245,7 @@ class OrderListFilterViewSecond(CreateAPIView):
             return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Order Data Not available ', 'Data': []})          
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+        
 class T_OrdersView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
     authentication__Class = JSONWebTokenAuthentication
@@ -321,6 +357,7 @@ class T_OrdersViewSecond(CreateAPIView):
                             "SupplierName": a['Supplier']['Name'],
                             "BillingAddressID": a['BillingAddress']['id'],
                             "BillingAddress": a['BillingAddress']['Address'],
+                            "BillingFssai": a['BillingAddress']['FSSAINo'],
                             "ShippingAddressID": a['ShippingAddress']['id'],
                             "ShippingAddress": a['ShippingAddress']['Address'],
                             "ShippingFssai": a['ShippingAddress']['FSSAINo'],
@@ -377,6 +414,8 @@ class EditOrderView(CreateAPIView):
                 Party = request.data['Party']  # Order Page Supplier DropDown
                 # Order Page Login Customer
                 Customer = request.data['Customer']
+                # Who's Rate you want 
+                RateParty = request.data['RateParty']
                 q1= M_Parties.objects.filter(id=Customer).values('PartyType')
                 q2 = M_PartyType.objects.filter(id =q1[0]['PartyType']).values('IsRetailer','IsSCM')
                 
@@ -422,6 +461,13 @@ left join m_marginmaster on m_marginmaster.id=a.Margin_id group by Item_id Order
                         Stock = 0.0
                     else:
                         Stock = stockquery['Qty']
+                        
+            # =====================Current MRP================================================
+                    TodaysMRP=MRPMaster(ItemID,0,0,EffectiveDate).GetTodaysDateMRP()
+                    print(TodaysMRP)
+                    b['MRP_id'] = TodaysMRP[0]['Mrpid']
+                    b['MRPValue'] = TodaysMRP[0]['TodaysMRP']
+                        
             # =====================Rate================================================
 
                     ratequery = TC_OrderItems.objects.filter(
@@ -433,15 +479,18 @@ left join m_marginmaster on m_marginmaster.id=a.Margin_id group by Item_id Order
 
                     if b['Rate'] is None:
                         b['Rate'] = r
-            # =====================Rate================================================
+            # =====================Unit================================================
                     UnitDetails = list()
                     ItemUnitquery = MC_ItemUnits.objects.filter(
                         Item=ItemID, IsDeleted=0)
                     ItemUnitqueryserialize = Mc_ItemUnitSerializerThird(
                         ItemUnitquery, many=True).data
-
+                    
+                    RateMcItemUnit = ""    
                     for d in ItemUnitqueryserialize:
-                     
+                        if (d['PODefaultUnit'] == True):
+                            RateMcItemUnit = d['id']
+
                         UnitDetails.append({
                             "UnitID": d['id'],
                             "UnitName": d['BaseUnitConversion'] ,
@@ -449,8 +498,13 @@ left join m_marginmaster on m_marginmaster.id=a.Margin_id group by Item_id Order
                             "PODefaultUnit": d['PODefaultUnit'],
                             "SODefaultUnit": d['SODefaultUnit'],
 
-
                         })
+             # =====================Rate With GST================================================ 
+             #Parameter Pass to Below Function (BatchID,ItemID,PartyID,DivisionID,MUnit,MCItemUnit)            
+
+                    # CalculatedRateusingMRPMargin=RateCalculationFunction(0,ItemID,RateParty,0,0,RateMcItemUnit).RateWithGST()
+                    # b.update({"CalculatedRate": CalculatedRateusingMRPMargin })
+                   
             # =====================IsDefaultTermsAndConditions================================================
 
                     b.update({"StockQuantity": Stock,

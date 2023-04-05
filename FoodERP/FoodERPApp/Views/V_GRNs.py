@@ -1,15 +1,16 @@
 import datetime
 from django.http import JsonResponse
-from rest_framework.generics import CreateAPIView, RetrieveAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_jwt.authentication import JSONWebTokenAuthentication
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 
 from ..Views.V_TransactionNumberfun import GetMaxNumber, GetPrifix
 from ..Serializer.S_GRNs import *
 from ..Serializer.S_Orders import *
 from ..Serializer.S_Challan import *
+from ..Serializer.S_Invoices import *
 from ..Serializer.S_Bom import *
 from ..models import *
 from django.db.models import *
@@ -329,11 +330,12 @@ class GetOrderDetailsForGrnView(CreateAPIView):
                             "SupplierName": OrderSerializedata[0]['SupplierName'],
                             "OrderAmount": OrderSerializedata[0]['OrderAmount'],
                             "Customer": OrderSerializedata[0]['CustomerID'],
+                            "InvoiceNumber":" ",
                             "OrderItem": OrderItemDetails,
                         })
                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': OrderData[0]})
                     
-                elif Mode == 2:
+                elif Mode == 2: #Make GRN from Challan
                     
                     ChallanQuery = T_Challan.objects.filter(id=POOrderIDs)
                     if ChallanQuery.exists():
@@ -420,10 +422,73 @@ class GetOrderDetailsForGrnView(CreateAPIView):
                             "SupplierName": x['Customer']['Name'],
                             "OrderAmount": x['GrandTotal'],
                             "Customer": x['Party']['id'],
+                            "InvoiceNumber":" ",
                             "OrderItem": ChallanItemDetails,
                         })
                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': ChallanData[0]})
-                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Order Data Not available ', 'Data': []}) 
+                    
+                elif Mode == 3: #Make GRN from Invoice
+                   
+                    InvoiceQuery = T_Invoices.objects.filter(id=POOrderIDs)
+                    if InvoiceQuery.exists():
+                        InvoiceSerializedata = InvoiceSerializerSecond(InvoiceQuery, many=True).data
+                        # return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': InvoiceSerializedata})
+                        InvoiceData = list()
+                        for a in InvoiceSerializedata:
+                            InvoiceItemDetails = list()
+                            
+                            for b in a['InvoiceItems']:
+                                
+                                Item= b['Item']['id']
+                                query = MC_ItemUnits.objects.filter(Item_id=Item,IsDeleted=0)
+                                # print(query.query)
+                                if query.exists():
+                                    Unitdata = Mc_ItemUnitSerializerThird(query, many=True).data
+                                    UnitDetails = list()
+                                    for c in Unitdata:
+                                        if c['IsDeleted']== 0 :
+                                            UnitDetails.append({
+                                            "Unit": c['id'],
+                                            "UnitName": c['BaseUnitConversion'],
+                                        })
+                                InvoiceItemDetails.append({
+                                    "Item": b['Item']['id'],
+                                    "ItemName": b['Item']['Name'],
+                                    "Quantity": b['Quantity'],
+                                    "MRP": b['MRP']['id'],
+                                    "MRPValue": b['MRP']['MRP'],
+                                    "Rate": b['Rate'],
+                                    "TaxType": b['TaxType'],
+                                    "Unit": b['Unit']['id'],
+                                    "UnitName": b['Unit']['BaseUnitConversion'],
+                                    "BaseUnitQuantity": b['BaseUnitQuantity'],
+                                    "GST": b['GST']['id'],
+                                    "GSTPercentage": b['GST']['GSTPercentage'],
+                                    "MarginValue": b['Margin']['Margin'],
+                                    "BasicAmount": b['BasicAmount'],
+                                    "GSTAmount": b['GSTAmount'],
+                                    "CGST": b['CGST'],
+                                    "SGST": b['SGST'],
+                                    "IGST": b['IGST'],
+                                    "CGSTPercentage": b['CGSTPercentage'],
+                                    "SGSTPercentage": b['SGSTPercentage'],
+                                    "IGSTPercentage": b['IGSTPercentage'],
+                                    "Amount": b['Amount'],
+                                    "BatchCode": b['BatchCode'],
+                                    "BatchDate": b['BatchDate'],
+                                    "UnitDetails":UnitDetails 
+                                })
+                                
+                            InvoiceData.append({
+                                "Supplier": a['Party']['id'],
+                                "SupplierName": a['Party']['Name'],
+                                "OrderAmount": a['GrandTotal'],
+                                "Customer": a['Customer']['id'],
+                                "InvoiceNumber":a['FullInvoiceNumber'], 
+                                "OrderItem": InvoiceItemDetails,
+                                
+                            })
+                        return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': InvoiceData[0]})    
                 else:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Order Data Not available ', 'Data': []})   
         except Exception as e:

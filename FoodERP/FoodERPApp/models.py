@@ -46,8 +46,10 @@ class C_Companies(models.Model):
         
 class M_PartyType(models.Model):
     Name = models.CharField(max_length=100)
+    IsVendor =models.BooleanField(default=False)
     IsSCM =models.BooleanField(default=False)
     IsDivision = models.BooleanField(default=False) 
+    IsAdminDivision = models.BooleanField(default=False) 
     CreatedBy = models.IntegerField()
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField()
@@ -135,13 +137,11 @@ class M_Parties(models.Model):
     IsDivision = models.BooleanField(default=False)
     MkUpMkDn = models.BooleanField(default=False)
     isActive = models.BooleanField(default=False)
-    
     CreatedBy = models.IntegerField()
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField()
     UpdatedOn = models.DateTimeField(auto_now=True)
-    # IsRetailer = models.BooleanField(default=False)
-    # IsSCM = models.BooleanField(default=False)
+
 
     class Meta:
         db_table = 'M_Parties'
@@ -163,8 +163,7 @@ class MC_PartyAddress(models.Model):
 class M_EmployeeTypes(models.Model):
     Name = models.CharField(max_length=100)
     ''' If IsPartyConnection Flag is True then we are able to assign multipal Parties from Employee Master  '''
-    IsPartyConnection=models.BooleanField(default=False)
-    IsSCM =models.BooleanField(default=False)
+    IsSalesTeamMember =models.BooleanField(default=False)
     Description= models.CharField(max_length=100,blank=True,null=True)
     CreatedBy = models.IntegerField()
     CreatedOn = models.DateTimeField(auto_now_add=True)
@@ -176,16 +175,6 @@ class M_EmployeeTypes(models.Model):
         db_table = "M_EmployeeTypes"
 
 
-class M_Designations(models.Model):
-    Name = models.CharField(max_length=100)
-    CreatedBy = models.IntegerField()
-    CreatedOn = models.DateTimeField(auto_now_add=True)
-    UpdatedBy = models.IntegerField()
-    UpdatedOn = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "M_Designations"
-
 
 class M_Employees(models.Model):
     Name = models.CharField(max_length=100)
@@ -195,14 +184,13 @@ class M_Employees(models.Model):
     DOB = models.CharField(max_length=100)
     PAN = models.CharField(max_length=100)
     AadharNo = models.CharField(max_length=100)
-    working_hours = models.DecimalField(max_digits=15, decimal_places=2)
+
 
     Company = models.ForeignKey(
         C_Companies, related_name='EmployeesCompany', on_delete=models.DO_NOTHING)
     EmployeeType = models.ForeignKey(
         M_EmployeeTypes, related_name='EmployeeType', on_delete=models.DO_NOTHING)
-    Designation = models.ForeignKey(
-        M_Designations, related_name='EmployeesDesignation', on_delete=models.DO_NOTHING, null=True)
+   
     State = models.ForeignKey(
         M_States, related_name='EmployeesState', on_delete=models.DO_NOTHING)
     District = models.ForeignKey(
@@ -255,6 +243,15 @@ class MC_EmployeeParties(models.Model):
 
     class Meta:
         db_table = "MC_EmployeeParties"
+
+class MC_ManagementParties(models.Model):
+    Employee = models.ForeignKey(
+        M_Employees, related_name='ManagementEmployee', on_delete=models.DO_NOTHING)
+    Party = models.ForeignKey(
+        M_Parties, related_name='ManagementEmpparty',  on_delete=models.DO_NOTHING)
+
+    class Meta:
+        db_table = "MC_ManagementParties"        
 
 
 class UserManager(BaseUserManager):
@@ -596,7 +593,6 @@ class M_Drivers(models.Model):
     
 class M_VehicleTypes(models.Model):
     Name= models.CharField(max_length=300)
-    Party = models.ForeignKey(M_Parties, related_name='VTParty', on_delete=models.PROTECT)
     Company = models.ForeignKey(C_Companies, related_name='VTCompany', on_delete=models.PROTECT)
     class Meta:
         db_table = "M_VehicleTypes" 
@@ -625,6 +621,7 @@ class M_Items(models.Model):
         M_Units, related_name='BaseUnitID', on_delete=models.DO_NOTHING)
     BarCode = models.CharField(max_length=500,null=True,blank=True) 
     isActive = models.BooleanField(default=False)
+    IsSCM = models.BooleanField(default=False)
     CanBeSold = models.BooleanField(default=False)
     CanBePurchase = models.BooleanField(default=False)
     BrandName = models.CharField(max_length=500,null=True,blank=True)
@@ -751,16 +748,6 @@ class M_POType(models.Model):
     class Meta:
         db_table = "M_POType"
 
-class M_InvoiceType(models.Model): 
-    Name = models.CharField(max_length=500)
-    Company=	models.ForeignKey(C_Companies,  on_delete=models.PROTECT)		
-    Division=models.ForeignKey(M_Parties, on_delete=models.PROTECT)
-    CreatedBy = models.IntegerField()
-    CreatedOn = models.DateTimeField(auto_now_add=True)
-    UpdatedBy = models.IntegerField()
-    UpdatedOn = models.DateTimeField(auto_now=True)
-    class Meta:
-        db_table = "M_InvoiceType" 
 
 class M_TermsAndConditions(models.Model):
     Name = models.CharField(max_length=500)
@@ -917,8 +904,8 @@ class TC_InvoiceItems(models.Model):
         db_table = "TC_InvoiceItems"
 
 class TC_InvoicesReferences(models.Model):
-    Invoice = models.ForeignKey(T_Invoices, on_delete=models.CASCADE)
-    Order = models.ForeignKey(T_Orders, on_delete=models.PROTECT)
+    Invoice = models.ForeignKey(T_Invoices, related_name='InvoicesReferences', on_delete=models.CASCADE)
+    Order = models.ForeignKey(T_Orders, related_name='InvoiceOrderReferences', on_delete=models.PROTECT)
     class Meta:
         db_table = "TC_InvoicesReferences"        
 
@@ -1046,13 +1033,7 @@ class TC_GRNReferences(models.Model):
     class Meta:
         db_table = "TC_GRNReferences"              
         
-class M_TransactionType(models.Model):
-    Name= models.CharField(max_length=100)
-    class Meta:
-        db_table = "M_TransactionType"
-
-
-
+        
 class M_BillOfMaterial(models.Model):
     BomDate = models.DateField()
     Item = models.ForeignKey(M_Items, on_delete=models.PROTECT) 
@@ -1473,10 +1454,86 @@ class TC_LoadingSheetDetails(models.Model):
     Invoice = models.ForeignKey(T_Invoices, related_name='LoadingSheetInvoice', on_delete=models.PROTECT)
     
     class Meta:
-        db_table = "TC_LoadingSheetDetails"             
+        db_table = "TC_LoadingSheetDetails"
+                     
+class T_Receipts(models.Model):
+    ReceiptDate = models.DateField()
+    ReceiptNo = models.CharField(max_length=500,blank=True, null=True)
+    Description = models.CharField(max_length=500,blank=True, null=True)
+    AmountPaid =  models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    OpeningBalanceAdjusted =  models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    BalanceAmount =  models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    OpeningBalanceAdjusted =  models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ReceiptMode = models.ForeignKey(M_GeneralMaster, related_name='Receiptmode', on_delete=models.PROTECT, blank=True, null=True)
+    ChequeDate =models.DateField(blank=True, null=True)
+    DocumentNo =models.CharField(max_length=500,blank=True, null=True)
+    Bank =  models.ForeignKey(M_Bank, related_name='Bank', on_delete=models.PROTECT, blank=True, null=True)
+    DepositorBank =  models.ForeignKey(M_Bank, related_name='DepositorBank', on_delete=models.PROTECT, blank=True, null=True)
+    Customer = models.ForeignKey(M_Parties, related_name='ReceiptCustomer', on_delete=models.PROTECT)
+    Party = models.ForeignKey(M_Parties, related_name='ReceiptParty', on_delete=models.PROTECT)
+    
+    class Meta:
+        db_table = "T_Receipts"
 
+class TC_ReceiptInvoices(models.Model):
+    Receipt = models.ForeignKey(T_Receipts, related_name='Receipt', on_delete=models.PROTECT)
+    Invoice = models.ForeignKey(T_Invoices, related_name='RInvoice', on_delete=models.PROTECT,blank=True, null=True)
+    GrandTotal =  models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    PaidAmount =  models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    AdvanceAmtAdjusted =  models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    flag = models.BooleanField(default=False)
+    class Meta:
+        db_table = "TC_ReceiptInvoices"
+        
+class T_CreditNotes(models.Model):
+    NoteType = models.IntegerField()
+    NoteTypeMode = models.CharField(max_length=20)
+    PurchaseReturn = models.ForeignKey(T_PurchaseReturn,on_delete=models.PROTECT)
+    NoteNumber = models.IntegerField()    
+    CreditNoteDate = models.DateField(blank=True,null=True)
+    Invoice = models.ForeignKey(T_Invoices,related_name='CNInvoice', on_delete=models.PROTECT)
+    Customer = models.ForeignKey(M_Parties,related_name='CNCustomer',on_delete=models.PROTECT)
+    GrandTotal = models.DecimalField(max_digits=20, decimal_places=2, blank=True,null=True)
+    RoundOffAmount = models.DecimalField(max_digits=20, decimal_places=2, blank=True,null=True)
+    CreditNoteReason = models.CharField(max_length=50,blank=True,null=True)
+    Party = models.ForeignKey(M_Parties,related_name='T_CreditNotesParty', on_delete=models.PROTECT)
+    DebitNoteReason = models.CharField(max_length=50,blank=True,null=True)
+    IsChequeBounce = models.BooleanField(default=False)
+    ReceiptNo = models.CharField(max_length=500,blank=True, null=True)
+    Narration = models.CharField(max_length=500,blank=True, null=True)
+    CreatedBy = models.IntegerField()
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField()
+    UpdatedOn = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = "T_CreditNotes"
+        
+class TC_CreditNotesItems(models.Model):
+    CreditNote = models.ForeignKey(T_CreditNotes,related_name='CNoteID',on_delete=models.PROTECT)
+    Item = models.ForeignKey(M_Items,on_delete=models.PROTECT)
+    HSNCode = models.CharField(max_length=500,blank=True, null=True)
+    Quantity = models.IntegerField()
+    Unit = models.ForeignKey(M_Units,on_delete=models.PROTECT)
+    MRP = models.ForeignKey(M_MRPMaster, related_name='CNoteMRP', on_delete=models.PROTECT,null=True,blank=True) 
+    Rate = models.DecimalField(max_digits=20, decimal_places=2)
+    BasicAmount = models.DecimalField(max_digits=15, decimal_places=2)
+    TaxType = models.CharField(max_length=500)
+    GSTRate = models.DecimalField(max_digits=20, decimal_places=2)
+    GSTAmount = models.DecimalField(max_digits=10, decimal_places=2)
+    Amount = models.DecimalField(max_digits=15, decimal_places=2)
+    CGST = models.DecimalField(max_digits=15, decimal_places=2)
+    SGST = models.DecimalField(max_digits=15, decimal_places=2)
+    IGST = models.DecimalField(max_digits=15, decimal_places=2)
+    CGSTPercentage = models.DecimalField(max_digits=15, decimal_places=2)
+    SGSTPercentage = models.DecimalField(max_digits=15, decimal_places=2)
+    IGSTPercentage = models.DecimalField(max_digits=15, decimal_places=2)
+    NOC = models.CharField(max_length=20)
+    BatchCode = models.CharField(max_length=500)
+    
+    class Meta:
+        db_table = "TC_CreditNotesItems"                
    
-                            
         
     
         

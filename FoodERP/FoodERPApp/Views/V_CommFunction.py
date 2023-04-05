@@ -1,14 +1,5 @@
-from decimal import Decimal
-from genericpath import exists
-from django.http import JsonResponse
-from rest_framework.generics import CreateAPIView, RetrieveAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
-from django.db import IntegrityError, connection, transaction
-from rest_framework.parsers import JSONParser,MultiPartParser, FormParser
 from django.db.models import Q
 from django.db.models import Max
-import math  
 
 
 
@@ -169,6 +160,7 @@ class MarginMaster:
             P=Q(Party_id__isnull=True)
         
         ItemMargindata = M_MarginMaster.objects.filter(P).filter(Item_id=self.ItemID,PriceList_id=self.PriceListID,EffectiveDate__lte=self.today,IsDeleted=0).order_by('-EffectiveDate','-id')[:1]
+        # print(str(ItemMargindata.query))
         if ItemMargindata.exists:
            
             P=Q(Party_id__isnull=True)
@@ -206,8 +198,8 @@ class MarginMaster:
         
         ItemMargindata = M_MarginMaster.objects.filter(P).filter(Item_id=self.ItemID,PriceList_id=self.PriceListID,EffectiveDate=self.EffectiveDate,IsDeleted=0).order_by('-EffectiveDate','-id')[:1]
         # print(str(ItemMargindata.query))
-
-        if ItemMargindata.count() == 0:
+        # if ItemMargindata.count() == 0:
+        if ItemMargindata.exists():
             Margin_Serializer = M_MarginsSerializer(ItemMargindata, many=True).data
             EffectiveDateMargin=   Margin_Serializer[0]['Margin']
         else:
@@ -392,10 +384,13 @@ class RateCalculationFunction:
         self.calculationPath=str(query1[0]['CalculationPath']).split(',')
        
     def RateWithGST(self):
+      
         
      
         for i in self.calculationPath:
+           
             Margin=MarginMaster(self.ItemID,i,self.PartyID,self.today).GetTodaysDateMargin()
+           
             Margin=float(Margin[0]['TodaysMargin'])
             GSTRate=self.MRP/(100+Margin)*100;
             RatewithoutGST=GSTRate*100/(100+self.GST)

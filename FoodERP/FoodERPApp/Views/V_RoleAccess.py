@@ -1,12 +1,10 @@
-from sys import modules
-from urllib import response
 from django.http import JsonResponse
 from rest_framework.response import Response
 
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_jwt.authentication import JSONWebTokenAuthentication
-from django.db import connection, transaction
+from django.db import transaction
 from rest_framework.parsers import JSONParser
 
 from ..Serializer.S_RoleAccess import *
@@ -135,6 +133,7 @@ class RoleAccessView(RetrieveAPIView):
             response1 = {
                 "ModuleID": a['id'],
                 "ModuleName":a["Name"],
+                "ModuleIcon":a["Icon"],
                 "ModuleData": Pagesdata,
 
             }
@@ -230,15 +229,21 @@ class RoleAccessViewNewUpdated(RetrieveAPIView):
         for a in RoleAccessdata:
             id = a['id']
             pageid=a['pageid']
-            RelatedPageID=a['RelatedPageID']
+            if a['RelatedPageID']== 0:
+                RelatedPageID=a['pageid']
+            else:
+                RelatedPageID=a['RelatedPageID']
+            
             
             if int(Division) > 0:
                 RelatedPageroleaccessquery = M_RoleAccess.objects.raw('''SELECT m_roleaccess.id id,'a' as Name FROM m_roleaccess WHERE  Pages_id=%s and  Role_id=%s AND Division_id=%s AND Company_id=%s   ''',([RelatedPageID],[Role],[Division],[Company]))
             else:
                
                 RelatedPageroleaccessquery = M_RoleAccess.objects.raw('''SELECT m_roleaccess.id id,'a' as Name FROM m_roleaccess WHERE  Pages_id=%s and  Role_id=%s AND Division_id is null AND Company_id=%s   ''',([RelatedPageID],[Role],[Company]))
+            # print(pageid)
+            # print('vvvvvvvvvvvvvv',RelatedPageroleaccessquery.query)
             RelatedPageRoleAccessdata = MC_RolePageAccessSerializerNewUpdated(RelatedPageroleaccessquery, many=True).data
-            # return JsonResponse(RelatedPageRoleAccessdata[0])
+            # print(RelatedPageRoleAccessdata)
             
             rolepageaccessqueryforlistPage =  H_PageAccess.objects.raw('''SELECT h_pageaccess.Name,ifnull(mc_rolepageaccess.PageAccess_id,0) id from h_pageaccess left JOIN mc_rolepageaccess ON mc_rolepageaccess.PageAccess_id=h_pageaccess.id AND mc_rolepageaccess.RoleAccess_id=%s ''', [id])
             # # return JsonResponse({'query':  str(rolepageaccessquery.query)})
@@ -249,8 +254,9 @@ class RoleAccessViewNewUpdated(RetrieveAPIView):
             for d in RelatedPageRoleAccessdata:
                 
                 roleaccessID=d['id']
-               
+            # print(roleaccessID)   
             rolepageaccessquery =  H_PageAccess.objects.raw('''SELECT h_pageaccess.Name,ifnull(mc_rolepageaccess.PageAccess_id,0) id from h_pageaccess left JOIN mc_rolepageaccess ON mc_rolepageaccess.PageAccess_id=h_pageaccess.id AND mc_rolepageaccess.RoleAccess_id=%s ''', [roleaccessID])
+            # print(rolepageaccessquery.query)
             # return JsonResponse({'query':  str(rolepageaccessquery.query)})
             RolePageAccessSerializer = MC_RolePageAccessSerializerNewUpdated(rolepageaccessquery,  many=True).data
             # return JsonResponse({'data':  RolePageAccessSerializer})
@@ -276,6 +282,7 @@ class RoleAccessViewNewUpdated(RetrieveAPIView):
                 "RoleAccess_Pdfdownload": RolePageAccessSerializer[9]['id'],
                 "RoleAccess_Exceldownload": RolePageAccessSerializer[10]['id'],
                 "RoleAccess_IsCopy": RolePageAccessSerializer[11]['id'],
+                "RoleAccess_IsMultipleInvoicePrint": RolePageAccessSerializer[12]['id'],
                 "PageAccess_IsShowOnMenu": PageAccessSerializer[0]['id'],
                 "PageAccess_IsSave": PageAccessSerializer[1]['id'],
                 "PageAccess_IsView": PageAccessSerializer[2]['id'],
@@ -288,6 +295,7 @@ class RoleAccessViewNewUpdated(RetrieveAPIView):
                 "PageAccess_Pdfdownload": PageAccessSerializer[9]['id'],
                 "PageAccess_Exceldownload": PageAccessSerializer[10]['id'],
                 "PageAccess_IsCopy": PageAccessSerializer[11]['id'],
+                "PageAccess_IsMultipleInvoicePrint": PageAccessSerializer[12]['id']
 
             })
 
@@ -348,6 +356,7 @@ class RoleAccessViewAddPage(RetrieveAPIView):
                 "RoleAccess_Pdfdownload": 0,
                 "RoleAccess_Exceldownload": 0,
                 "RoleAccess_IsCopy": 0,
+                "RoleAccess_IsMultipleInvoicePrint":0,
                 "PageAccess_IsShowOnMenu": PageAccessSerializer[0]['id'],
                 "PageAccess_IsSave": PageAccessSerializer[1]['id'],
                 "PageAccess_IsView": PageAccessSerializer[2]['id'],
@@ -359,7 +368,8 @@ class RoleAccessViewAddPage(RetrieveAPIView):
                 "PageAccess_IsTopOfTheDivision": PageAccessSerializer[8]['id'],
                 "PageAccess_Pdfdownload": PageAccessSerializer[9]['id'],
                 "PageAccess_Exceldownload": PageAccessSerializer[10]['id'],
-                "PageAccess_IsCopy": PageAccessSerializer[11]['id']
+                "PageAccess_IsCopy": PageAccessSerializer[11]['id'],
+                "PageAccess_IsMultipleInvoicePrint": PageAccessSerializer[12]['id']
                    
             })
 

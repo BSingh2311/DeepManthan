@@ -44,8 +44,6 @@ from .Views.V_EmployeeTypes import *
 
 from .Views.V_States import *
 
-from .Views.V_Designations import *
-
 from .Views.V_PriceLists import  *
 
 from .Views.V_PartyTypes import *
@@ -106,6 +104,8 @@ from .Views.V_BankMaster import *
 
 from .Views.V_PartyWiseUpdate import *
 
+from .Views.V_Receipts import *
+
 urlpatterns = [
     
     # Master APIs IN Projects Add Page ,List Page
@@ -155,10 +155,7 @@ urlpatterns = [
             url(r'CompanyGroups/([0-9]+)$', C_CompanyGroupViewSecond.as_view()),
             url(r'CompanyGroups$', C_CompanyGroupView.as_view()),
     
-# Designations 
-            url(r'Designations/([0-9]+)$', M_DesignationsViewSecond.as_view()),
-            url(r'Designations$',M_DesignationsView.as_view()),
-    
+
 # Employees 
             url(r'Employees/([0-9]+)$', M_EmployeesViewSecond.as_view()),
             url(r'Employees$', M_EmployeesView.as_view()),
@@ -168,7 +165,15 @@ urlpatterns = [
             url(r'EmployeeTypes/([0-9]+)$', M_EmployeeTypeViewSecond.as_view()),
             url(r'EmployeeTypes$', M_EmployeeTypeView.as_view()),
             url(r'EmployeeTypesFilter$', M_EmployeeTypeFilterView.as_view()),
-    
+            
+            
+# ManagementEmployeeParties
+            url(r'ManagementEmployeeList$', ManagementEmployeeViewList.as_view()),
+            url(r'ManagementEmpPartiesFilter$', ManagementEmployeePartiesFilterView.as_view()),
+            url(r'ManagementEmpParties$', ManagementEmployeePartiesSaveView.as_view()),
+            url(r'ManagementEmpParties/([0-9]+)$', ManagementEmployeePartiesSaveView.as_view()),
+         
+
 # Order All APIs
             url(r'TestOrderget/([0-9]+)$',TestOrdersView.as_view()),
             url(r'Orders/([0-9]+)$', T_OrdersViewSecond.as_view()),
@@ -210,6 +215,7 @@ urlpatterns = [
             url(r'GeneralMasterType$', GeneralMasterTypeView.as_view()),
             url(r'GeneralMasterSubType$', GeneralMasterSubTypeView.as_view()),
             url(r'GeneralMasterBrandName$', GeneralMasterBrandName.as_view()),
+            url(r'ReceiptMode$', ReceiptModeView.as_view()), 
 
 #Invoice All APIs
             url(r'Invoice/([0-9]+)$', InvoiceViewSecond.as_view()),
@@ -306,6 +312,7 @@ urlpatterns = [
             
 # PartyWiseUpdate            
             url(r'PartyWiseUpdate$', PartyWiseUpdateView.as_view()),
+            url(r'PartyWiseSave$', PartyWiseUpdateViewSecond.as_view()),
 
 # Driver 
             url(r'DriverFilter$', DriverViewList.as_view()),
@@ -391,6 +398,14 @@ urlpatterns = [
             url(r'GetMRP$',GETMrpDetails.as_view()),
             url(r'GetMargin$',GETMarginDetails.as_view()),
             url(r'GetGstHsncode$',GETGstHsnDetails.as_view()),
+            
+# BankMaster
+            url(r'Bank/([0-9]+)$', BankView.as_view()),
+            url(r'Bank$', BankView.as_view()),
+            url(r'BankFilter$', BankListView.as_view()),
+
+# Receipt    
+                                
     
 # RoleAccess========================================= 
             #SideMenu Partyid/Employeeid/CompanyID
@@ -412,9 +427,6 @@ urlpatterns = [
             url(r'CopyRoleAccessabc$',CopyRoleAccessView.as_view()),
             url(r'RegenrateToken$', RegenrateToken.as_view()),
 
-# BankMaster
-            url(r'Bank/([0-9]+)$', BankView.as_view()),
-            url(r'Bank$', BankView.as_view()),
-            url(r'BankFilter$', BankListView.as_view())
+
      
 ]

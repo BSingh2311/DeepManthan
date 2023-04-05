@@ -1,8 +1,8 @@
 from django.http import JsonResponse
-from rest_framework.generics import CreateAPIView, RetrieveAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_jwt.authentication import JSONWebTokenAuthentication
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 
 from ..Serializer.S_VehicleTypes import *
@@ -20,9 +20,7 @@ class M_VehicleTypesView(CreateAPIView):
         try:
             with transaction.atomic():
                 VehicleTypedata = JSONParser().parse(request)
-                Company = VehicleTypedata['CompanyID']
-                Party = VehicleTypedata['PartyID']
-                VehicleTypedata = M_VehicleTypes.objects.filter(Party=Party,Company=Company)
+                VehicleTypedata = M_VehicleTypes.objects.filter(Company=1)
                 if VehicleTypedata.exists():
                     VehicleType_Serializer = VehicleTypesSerializer(VehicleTypedata, many=True)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': VehicleType_Serializer.data})

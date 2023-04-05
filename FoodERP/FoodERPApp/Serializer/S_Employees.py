@@ -1,11 +1,6 @@
 from ..models import *
 from rest_framework import serializers
 
-
-
-
-
-
 class M_EmployeesSerializer02(serializers.Serializer):
     id = serializers.IntegerField()
     Name = serializers.CharField(max_length=100)
@@ -15,18 +10,15 @@ class M_EmployeesSerializer02(serializers.Serializer):
     DOB = serializers.CharField(max_length=100)
     PAN = serializers.CharField(max_length=100)
     AadharNo = serializers.CharField(max_length=100)
-    working_hours =  serializers.DecimalField(max_digits = 15,decimal_places=2)
     CreatedBy = serializers.IntegerField(default=False)
     CreatedOn = serializers.DateTimeField()
     UpdatedBy = serializers.IntegerField(default=False)
     UpdatedOn = serializers.DateTimeField()
     CompanyName = serializers.CharField(max_length=100)
-    DesignationName = serializers.CharField(max_length=100)
     EmployeeTypeName = serializers.CharField(max_length=100)
     StateName = serializers.CharField(max_length=100)
     DistrictName = serializers.CharField(max_length=100)
     Company_id = serializers.IntegerField()
-    Designation_id = serializers.IntegerField()
     EmployeeType_id = serializers.IntegerField()
     State_id = serializers.IntegerField()
     District_id =serializers.IntegerField()
@@ -65,12 +57,8 @@ class M_EmployeesSerializer(serializers.ModelSerializer):
             'PAN', instance.PAN)
         instance.AadharNo = validated_data.get(
             'AadharNo', instance.AadharNo)
-        instance.working_hours = validated_data.get(
-            'working_hours', instance.working_hours) 
         instance.Company = validated_data.get(
             'Company', instance.Company)
-        instance.Designation = validated_data.get(
-            'Designation', instance.Designation)
         instance.EmployeeType = validated_data.get(
             'EmployeeType', instance.EmployeeType)
         instance.State = validated_data.get(
@@ -87,19 +75,15 @@ class M_EmployeesSerializer(serializers.ModelSerializer):
         for items in instance.EmployeeParties.all():
             items.delete()
 
-        
         for OrderItem_data in validated_data['EmployeeParties']:
             Items = MC_EmployeeParties.objects.create(Employee=instance, **OrderItem_data)
             instance.EmployeeParties.add(Items)
  
         return instance      
 
-
 class EmployeepartiesDataSerializer(serializers.Serializer):
     id= serializers.IntegerField()
     Name = serializers.CharField(max_length=100)
-
-
 
 class M_EmployeesSerializerforgetdata(serializers.ModelSerializer):
     # Company_id =  serializers.IntegerField()
@@ -107,5 +91,10 @@ class M_EmployeesSerializerforgetdata(serializers.ModelSerializer):
         model =  M_Employees
         fields = ['Company']
 
+class ManagementEmployeeParties(serializers.ModelSerializer):
+    
+    class Meta:
+        model =  MC_ManagementParties
+        fields = '__all__'
    
     
