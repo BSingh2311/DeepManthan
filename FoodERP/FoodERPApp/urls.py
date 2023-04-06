@@ -215,7 +215,6 @@ urlpatterns = [
             url(r'GeneralMasterType$', GeneralMasterTypeView.as_view()),
             url(r'GeneralMasterSubType$', GeneralMasterSubTypeView.as_view()),
             url(r'GeneralMasterBrandName$', GeneralMasterBrandName.as_view()),
-            url(r'ReceiptMode$', ReceiptModeView.as_view()), 
 
 #Invoice All APIs
             url(r'Invoice/([0-9]+)$', InvoiceViewSecond.as_view()),
@@ -404,8 +403,10 @@ urlpatterns = [
             url(r'Bank$', BankView.as_view()),
             url(r'BankFilter$', BankListView.as_view()),
 
-# Receipt    
-                                
+# Receipt
+            url(r'ReceiptInvoices$', ReceiptInvoicesView.as_view()),
+            url(r'Receipt/([0-9]+)$', ReceiptView.as_view()),
+            url(r'ReceiptFilter$', ReceiptListView.as_view()),
     
 # RoleAccess========================================= 
             #SideMenu Partyid/Employeeid/CompanyID
