@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from rest_framework_jwt.settings import api_settings
+# from rest_framework_jwt.settings import api_settings
 from django.contrib.auth.models import update_last_login
 
 from  ..models import C_CompanyGroups, M_Employees, M_Parties, M_Roles, M_Users, MC_UserRoles,C_Companies
@@ -8,9 +8,10 @@ from  ..models import C_CompanyGroups, M_Employees, M_Parties, M_Roles, M_Users,
 from rest_framework import serializers
 
 from ..models import M_Users
+from rest_framework_simplejwt.tokens import RefreshToken
 
-JWT_PAYLOAD_HANDLER = api_settings.JWT_PAYLOAD_HANDLER
-JWT_ENCODE_HANDLER = api_settings.JWT_ENCODE_HANDLER
+# JWT_PAYLOAD_HANDLER = api_settings.JWT_PAYLOAD_HANDLER
+# JWT_ENCODE_HANDLER = api_settings.JWT_ENCODE_HANDLER
 
 class MC_UserRolesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -106,8 +107,11 @@ class UserLoginSerializer(serializers.Serializer):
                 'A user with this LoginName and password is not found.'
             )
         try:
-            payload = JWT_PAYLOAD_HANDLER(user)
-            jwt_token = JWT_ENCODE_HANDLER(payload)
+            # payload = JWT_PAYLOAD_HANDLER(user)
+            # jwt_token = JWT_ENCODE_HANDLER(payload)
+            refresh = RefreshToken.for_user(user)
+
+            
 
             update_last_login(None, user)
         except M_Users.DoesNotExist:
@@ -117,8 +121,9 @@ class UserLoginSerializer(serializers.Serializer):
         return {
             'LoginName': user.LoginName,
             'EmployeeID':user.Employee_id,
-            'token': jwt_token,
-            'UserID' : user.id
+            'token': str(refresh.access_token),
+            'UserID' : user.id,
+            'refresh': str(refresh)
         }
 
 
@@ -221,6 +226,7 @@ class M_UserPartiesSerializer(serializers.Serializer):
     Party_id=serializers.IntegerField()
     PartyName=serializers.CharField(max_length=500)
     Employee_id=serializers.IntegerField()
+    
     
     
 class EmployeeSerializerForUserCreation(serializers.Serializer): 

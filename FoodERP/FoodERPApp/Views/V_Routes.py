@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 from ..Serializer.S_Routes import *
@@ -11,7 +11,7 @@ from ..models import *
 class RouteListView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def post(self, request,id=0):
@@ -33,7 +33,7 @@ class RouteListView(CreateAPIView):
 class RoutesView(CreateAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def post(self, request):
@@ -100,7 +100,7 @@ class RoutesView(CreateAPIView):
 class RoutesUpdateListView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def post(self, request,id=0):
@@ -108,7 +108,14 @@ class RoutesUpdateListView(CreateAPIView):
             with transaction.atomic():
                 PartySubpartydata = JSONParser().parse(request)
                 Party = PartySubpartydata['PartyID']
-                query = MC_PartySubParty.objects.filter(Party=Party)       
+                      
+                
+                q0 = MC_PartySubParty.objects.filter(Party = Party).values("SubParty")
+              
+                q1 = M_Parties.objects.filter(id__in = q0,PartyType__IsRetailer=1).select_related("PartyType") 
+               
+                query = MC_PartySubParty.objects.filter(SubParty__in=q1) 
+                
                 if query.exists():
                     SubPartydata = RoutesUpdateListSerializer(query, many=True).data
                     # return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': SubPartydata})
@@ -132,7 +139,7 @@ class RoutesUpdateListView(CreateAPIView):
 
 class RoutesUpdateView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication 
+    # authentication_class = JSONWebTokenAuthentication 
     
     @transaction.atomic()
     def post(self, request,id=0):

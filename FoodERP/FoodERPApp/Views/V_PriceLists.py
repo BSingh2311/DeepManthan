@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 
@@ -16,14 +16,13 @@ def CalculationPathLable(CalculationPathSting):
         CalculationPathdata=[]
     else:    
         w=CalculationPathSting.split(",")
-        query=M_PriceList.objects.filter(id__in=w).values('id','Name')
-    
+       
         CalculationPathdata=list()
-        for p in query:
-            
+        for p in w:
+            query=M_PriceList.objects.filter(id=p).values('id','Name')
             CalculationPathdata.append({
-                "id" :p['id'],
-                "Name" : p['Name']   
+                "id" :query[0]['id'],
+                "Name" : query[0]['Name']   
             })
     
     return CalculationPathdata
@@ -34,6 +33,7 @@ def getchildnode(ParentID):
     cdata=list()
     if Modulesdata.exists():
         Modules_Serializer = PriceListSerializer(Modulesdata, many=True).data
+       
         for z in Modules_Serializer:
         
             cchild=getchildnode(z["id"])
@@ -51,17 +51,18 @@ def getchildnode(ParentID):
     else:
         return []
 
-
-class PriceListView(CreateAPIView):
-
+class CompanywisePriceListView(CreateAPIView):
+    
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
-    def get(self, request):
+    def get(self, request,Company=0):
         try:
             with transaction.atomic():
-                query = M_PriceList.objects.all()
+              
+                query = M_PriceList.objects.filter(Company=Company)
+               
                 # return JsonResponse({'StatusCode': 204, 'Status': True,'Data':str(query.query)})
                 if not query:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Price List Not available', 'Data': []})
@@ -88,6 +89,12 @@ class PriceListView(CreateAPIView):
         except Exception as e:
                 return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
+class PriceListView(CreateAPIView):
+
+    permission_classes = (IsAuthenticated,)
+    # authentication_class = JSONWebTokenAuthentication
+
+    
     @transaction.atomic()
     def post(self, request):
         try:
@@ -108,7 +115,7 @@ class PriceListView(CreateAPIView):
 class PriceListViewSecond(CreateAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     def get(self, request, id=0):
         try:
@@ -121,7 +128,7 @@ class PriceListViewSecond(CreateAPIView):
                    
                     PriceListData = list()
                     for a in PriceList_Serializer:
-                      
+                       
                         aa=a['id']
                         
                         child=getchildnode(aa)

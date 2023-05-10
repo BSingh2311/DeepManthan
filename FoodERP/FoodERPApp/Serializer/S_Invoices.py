@@ -2,6 +2,8 @@ from ..models import *
 from rest_framework import serializers
 from ..Serializer.S_Items import *
 from ..Serializer.S_Orders import  *
+from ..Serializer.S_Drivers import  *
+from ..Serializer.S_Vehicles import  *
 
 class StateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,18 +67,23 @@ class OrderserializerforInvoice(serializers.ModelSerializer):
         fields = '__all__'
        
        
-class InvoicesReferencesSerializer(serializers.ModelSerializer):
-    # Order = OrderserializerforInvoice(read_only=True)
+class InvoicesReferencesSerializerSecond(serializers.ModelSerializer):
+    Order = OrderserializerforInvoice(read_only=True)
     class Meta:
         model = TC_InvoicesReferences
-        # fields = '__all__'
-        fields = ['Order'] 
+        fields = '__all__'
+    
+        
+class InvoicesReferencesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TC_InvoicesReferences
+        fields = ['Order']         
          
 class InvoiceItemsSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TC_InvoiceItems
-        fields = ['BatchCode', 'Quantity', 'BaseUnitQuantity', 'MRP', 'Rate', 'BasicAmount', 'TaxType', 'GST', 'GSTAmount', 'Amount', 'DiscountType', 'Discount', 'DiscountAmount', 'CGST', 'SGST', 'IGST', 'CGSTPercentage', 'SGSTPercentage', 'IGSTPercentage', 'CreatedOn', 'Item', 'Unit', 'BatchDate','LiveBatch']   
+        fields = ['BatchCode', 'Quantity', 'BaseUnitQuantity', 'MRP', 'Rate', 'BasicAmount', 'TaxType', 'GST', 'GSTAmount', 'Amount', 'DiscountType', 'Discount', 'DiscountAmount', 'CGST', 'SGST', 'IGST', 'CGSTPercentage', 'SGSTPercentage', 'IGSTPercentage', 'CreatedOn', 'Item', 'Unit', 'BatchDate','LiveBatch','MRPValue','GSTPercentage']   
 
 class obatchwiseStockSerializer(serializers.ModelSerializer):
     class Meta:
@@ -116,6 +123,24 @@ class InvoiceSerializer(serializers.ModelSerializer):
               
         
         return InvoiceID   
+
+class BulkInvoiceSerializer(serializers.ModelSerializer):
+    InvoiceItems = InvoiceItemsSerializer(many=True)
+    
+    class Meta:
+        model = T_Invoices
+        fields = ['InvoiceDate', 'InvoiceNumber', 'FullInvoiceNumber', 'GrandTotal', 'RoundOffAmount', 'CreatedBy', 'UpdatedBy', 'Customer', 'Party', 'InvoiceItems']
+        # fields ='__all__'
+    
+    def create(self, validated_data):
+
+        InvoiceItems_data = validated_data.pop('InvoiceItems')
+        InvoiceID = T_Invoices.objects.create(**validated_data)
+        
+        for InvoiceItem_data in InvoiceItems_data:
+            InvoiceItemID =TC_InvoiceItems.objects.create(Invoice=InvoiceID, **InvoiceItem_data)
+            
+        return InvoiceID        
     
     
 class InvoiceItemsSerializerSecond(serializers.ModelSerializer):
@@ -127,7 +152,7 @@ class InvoiceItemsSerializerSecond(serializers.ModelSerializer):
     Unit = Mc_ItemUnitSerializerThird(read_only=True)
     class Meta:
         model = TC_InvoiceItems
-        fields = ['BatchCode', 'Quantity', 'BaseUnitQuantity', 'MRP', 'Rate', 'BasicAmount', 'TaxType', 'GST', 'GSTAmount', 'Amount', 'DiscountType', 'Discount', 'DiscountAmount', 'CGST', 'SGST', 'IGST', 'CGSTPercentage', 'SGSTPercentage', 'IGSTPercentage', 'CreatedOn', 'Item', 'Unit', 'BatchDate','LiveBatch']
+        fields = ['BatchCode', 'Quantity', 'BaseUnitQuantity', 'MRP', 'Rate', 'BasicAmount', 'TaxType', 'GST', 'GSTAmount', 'Amount', 'DiscountType', 'Discount', 'DiscountAmount', 'CGST', 'SGST', 'IGST', 'CGSTPercentage', 'SGSTPercentage', 'IGSTPercentage', 'CreatedOn', 'Item', 'Unit', 'BatchDate','LiveBatch','MRPValue','GSTPercentage']
         
     def to_representation(self, instance):
         # get representation from ModelSerializer
@@ -148,15 +173,61 @@ class InvoiceSerializerSecond(serializers.ModelSerializer):
     Customer = PartiesSerializerSecond(read_only=True)
     Party = PartiesSerializerSecond(read_only=True)
     InvoiceItems = InvoiceItemsSerializerSecond(many=True)
-    InvoicesReferences = InvoicesReferencesSerializer(many=True)
-    
+    InvoicesReferences = InvoicesReferencesSerializerSecond(many=True)
+    Driver= M_DriverSerializer(read_only=True)
+    Vehicle = VehiclesSerializer(read_only=True)
     class Meta:
         model = T_Invoices
-        fields = '__all__'    
+        fields = '__all__'
+    
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(InvoiceSerializerSecond, self).to_representation(instance)
+        # if parent is None, overwrite
+        if not ret.get("Driver", None):
+            ret["Driver"] = {"id": None, "Name": None}
+            
+        if not ret.get("Vehicle", None):
+            ret["Vehicle"] = {"id": None, "VehicleNumber": None}
+        
+        return ret          
+
+
+class InvoiceSerializerThird(serializers.ModelSerializer):
+    Customer = PartiesSerializerSecond(read_only=True)
+    Party = PartiesSerializerSecond(read_only=True)
+    InvoiceItems = InvoiceItemsSerializerSecond(many=True)
+    InvoicesReferences = InvoicesReferencesSerializerSecond(many=True)
+    Driver= M_DriverSerializer(read_only=True)
+    Vehicle = VehiclesSerializer(read_only=True)
+    class Meta:
+        model = T_Invoices
+        fields = '__all__'
+    
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(InvoiceSerializerThird, self).to_representation(instance)
+        # if parent is None, overwrite
+        if not ret.get("Driver", None):
+            ret["Driver"] = {"id": None, "Name": None}
+            
+        if not ret.get("Vehicle", None):
+            ret["Vehicle"] = {"id": None, "VehicleNumber": None}
+        
+        return ret         
+            
 
 class InvoiceSerializerForDelete(serializers.ModelSerializer):
     InvoiceItems = InvoiceItemsSerializer(many=True)
  
     class Meta:
         model = T_Invoices
-        fields = '__all__'               
+        fields = '__all__'   
+        
+#Invoice Serializer for TC_ReceiptInvoices
+        
+class GlobleInvoiceSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = T_Invoices
+        fields = ['id','InvoiceDate', 'InvoiceNumber', 'FullInvoiceNumber', 'GrandTotal', 'CreatedOn']                

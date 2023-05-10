@@ -1,6 +1,11 @@
 from ..models import *
 from rest_framework import serializers
-      
+
+class PartiesSerializer(serializers.ModelSerializer):
+       
+    class Meta:
+        model = M_Parties
+        fields = ['id','Name','GSTIN','PAN','Email']       
         
 class DivisionsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -51,7 +56,7 @@ class M_PartiesSerializer(serializers.ModelSerializer):
         
         
     def create(self, validated_data):
-       
+        PartyType = validated_data.get('PartyType')
         PartyAddress_data = validated_data.pop('PartyAddress')
         PartyPrefix_data = validated_data.pop('PartyPrefix')
         PartySubPartys=validated_data.pop('PartySubParty')
@@ -62,9 +67,18 @@ class M_PartiesSerializer(serializers.ModelSerializer):
 
         for PartyPrefix in PartyPrefix_data:
             Partyprefixx = MC_PartyPrefixs.objects.create(Party=PartyID, **PartyPrefix) 
-       
-        for PartySubParty in PartySubPartys:
-            PartySubParty=MC_PartySubParty.objects.create(SubParty=PartyID, **PartySubParty)         
+        
+        
+        query=M_PartyType.objects.filter(id=PartyType.id).values('IsVendor')
+
+        if query[0]['IsVendor'] == True:
+            for PartySubParty in PartySubPartys:
+                subparty = PartySubParty.pop('Party')
+                PartySubParty=MC_PartySubParty.objects.create(Party=PartyID,SubParty=subparty, **PartySubParty)
+        else:
+            
+            for PartySubParty in PartySubPartys:
+                PartySubParty=MC_PartySubParty.objects.create(SubParty=PartyID, **PartySubParty)         
     
         return PartyID
     
@@ -91,6 +105,8 @@ class M_PartiesSerializer(serializers.ModelSerializer):
             'Taluka', instance.Taluka)
         instance.City = validated_data.get(
             'City', instance.City)
+        instance.SAPPartyCode = validated_data.get(
+            'SAPPartyCode', instance.SAPPartyCode)
         instance.GSTIN = validated_data.get(
             'GSTIN', instance.GSTIN)
         instance.PAN = validated_data.get(
@@ -118,11 +134,16 @@ class M_PartiesSerializer(serializers.ModelSerializer):
 
         for PartyPrefixs_data in validated_data['PartyPrefix']:
             Party = MC_PartyPrefixs.objects.create(Party=instance, **PartyPrefixs_data)
-            
-        for PartySubParty in validated_data['PartySubParty']:
-            PartySubParty=MC_PartySubParty.objects.create(SubParty=instance, **PartySubParty)     
-                 
-                  
+        
+        query=M_PartyType.objects.filter(id=instance.PartyType).values('IsVendor')
+        if query[0]['IsVendor'] == True:
+            for PartySubParty in validated_data['PartySubParty']:
+                subparty = PartySubParty.pop('Party')
+                PartySubParty=MC_PartySubParty.objects.create(Party=instance,SubParty=subparty, **PartySubParty)  
+        else:   
+            for PartySubParty in validated_data['PartySubParty']:
+                PartySubParty=MC_PartySubParty.objects.create(SubParty=instance, **PartySubParty)     
+                        
         return instance
             
 class M_PartiesSerializer1(serializers.Serializer):
@@ -146,6 +167,7 @@ class M_PartiesSerializer1(serializers.Serializer):
     DistrictName = serializers.CharField(max_length=500)
     Taluka = serializers.IntegerField ()
     City = serializers.IntegerField()
+    SAPPartyCode = serializers.CharField(max_length = 500)
     GSTIN =  serializers.CharField(max_length=500)
     PAN =  serializers.CharField(max_length=500)
     FSSAINo = serializers.CharField(max_length=500)

@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import transaction
 from rest_framework.parsers import JSONParser
 
@@ -17,7 +17,7 @@ from ..models import  *
 class DemandDetailsForIBChallan(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     def post(self, request, id=0):
         try:
@@ -44,7 +44,7 @@ class DemandDetailsForIBChallan(CreateAPIView):
                     for x in Serializedata:
                         Order_list.append(x['id'])
                         
-                    OrderQuery=T_Demands.objects.raw("SELECT T_Demands.Supplier_id id,m_parties.Name SupplierName,sum(T_Demands.DemandAmount) OrderAmount ,T_Demands.Customer_id CustomerID FROM T_Demands join m_parties on m_parties.id=T_Demands.Supplier_id where T_Demands.id IN %s group by T_Demands.Supplier_id;",[Order_list])
+                    OrderQuery=T_Demands.objects.raw("SELECT T_Demands.Supplier_id id,M_Parties.Name SupplierName,sum(T_Demands.DemandAmount) OrderAmount ,T_Demands.Customer_id CustomerID FROM T_Demands join M_Parties on M_Parties.id=T_Demands.Supplier_id where T_Demands.id IN %s group by T_Demands.Supplier_id;",[Order_list])
                     OrderSerializedata = OrderSerializerForGrn(OrderQuery,many=True)
                     OrderItemQuery=TC_DemandItems.objects.filter(Demand__in=Order_list,IsDeleted=0).order_by('Item')
                     OrderItemSerializedata=TC_DemandItemsSerializerSecond(OrderItemQuery,many=True).data
@@ -133,7 +133,7 @@ class DemandDetailsForIBChallan(CreateAPIView):
 
 class InterBranchChallanListFilterView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def post(self, request, id=0):
@@ -185,7 +185,7 @@ class InterBranchChallanListFilterView(CreateAPIView):
 
 class InterBranchChallanView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def post(self, request):
@@ -222,7 +222,7 @@ class InterBranchChallanView(CreateAPIView):
     
 class InterBranchChallanViewSecond(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def delete(self, request, id=0):

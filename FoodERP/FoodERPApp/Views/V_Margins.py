@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 
@@ -20,13 +20,13 @@ from ..models import *
 class M_MarginsView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def get(self, request):
         try:
             with transaction.atomic():
-                Margindata = M_MarginMaster.objects.raw('''SELECT m_marginmaster.id,m_marginmaster.EffectiveDate,m_marginmaster.Company_id,m_marginmaster.PriceList_id,m_marginmaster.CreatedBy,m_marginmaster.CreatedOn,m_marginmaster.Party_id,m_marginmaster.CommonID,c_companies.Name CompanyName, m_pricelist.Name PriceListName,m_parties.Name PartyName  FROM m_marginmaster  left join c_companies on c_companies.id = m_marginmaster.Company_id left join m_pricelist  on m_pricelist.id = m_marginmaster.PriceList_id left join m_parties on m_parties.id = m_marginmaster.Party_id where m_marginmaster.CommonID>0 AND m_marginmaster.IsDeleted=0 group by EffectiveDate,Party_id,PriceList_id,CommonID Order BY EffectiveDate Desc''')
+                Margindata = M_MarginMaster.objects.raw('''SELECT M_MarginMaster.id,M_MarginMaster.EffectiveDate,M_MarginMaster.Company_id,M_MarginMaster.PriceList_id,M_MarginMaster.CreatedBy,M_MarginMaster.CreatedOn,M_MarginMaster.Party_id,M_MarginMaster.CommonID,C_Companies.Name CompanyName, M_PriceList.Name PriceListName,M_Parties.Name PartyName  FROM M_MarginMaster  left join C_Companies on C_Companies.id = M_MarginMaster.Company_id left join M_PriceList  on M_PriceList.id = M_MarginMaster.PriceList_id left join M_Parties on M_Parties.id = M_MarginMaster.Party_id where M_MarginMaster.CommonID>0 AND M_MarginMaster.IsDeleted=0 group by EffectiveDate,Party_id,PriceList_id,CommonID Order BY EffectiveDate Desc''')
                 # print(str(MRPdata.query))
                 if not Margindata:
                     return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Items Not available', 'Data': []})
@@ -61,7 +61,7 @@ class M_MarginsView(CreateAPIView):
 
 class GETMarginDetails(CreateAPIView): 
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
     @transaction.atomic()
     def post(self, request):
         try:
@@ -98,7 +98,7 @@ class GETMarginDetails(CreateAPIView):
 
 class M_MarginsViewSecond(CreateAPIView):   
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def delete(self, request, id=0):
@@ -117,7 +117,7 @@ class M_MarginsViewSecond(CreateAPIView):
 ''' Margin Master List Delete Api Depend on CommonID '''
 class M_MarginsViewThird(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def delete(self, request, id=0):

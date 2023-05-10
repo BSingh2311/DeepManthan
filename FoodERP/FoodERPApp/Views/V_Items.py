@@ -2,7 +2,7 @@ from decimal import Decimal
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 
@@ -13,7 +13,7 @@ from ..models import *
         
 class M_ItemTag(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def get(self, request, id=0 ):
@@ -39,7 +39,7 @@ class M_ItemTag(CreateAPIView):
         
 class MCUnitDetailsView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
     def post(self, request):
         try:
             with transaction.atomic():
@@ -64,16 +64,28 @@ class MCUnitDetailsView(CreateAPIView):
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})       
         
-class M_ItemsView(CreateAPIView):
+class M_ItemsFilterView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
     
     @transaction.atomic()
-    def get(self, request, id=0 ):
+    def post(self, request, id=0 ):
         try:
             with transaction.atomic():
-                query = M_Items.objects.all().order_by('Sequence')
+                Logindata = JSONParser().parse(request)
+                UserID = Logindata['UserID']   
+                RoleID=  Logindata['RoleID']  
+                CompanyID=Logindata['CompanyID']
+                PartyID=Logindata['PartyID'] 
+                CompanyGroupID =Logindata['CompanyGroup'] 
+                IsSCMCompany = Logindata['IsSCMCompany'] 
+                
+                if IsSCMCompany == 1:
+                    Company=C_Companies.objects.filter(CompanyGroup=CompanyGroupID)
+                    query = M_Items.objects.filter(IsSCM=1,Company__in=Company).order_by('Sequence')
+                else:
+                    query = M_Items.objects.filter(Company=CompanyID).order_by('Sequence')
                 # return JsonResponse({'query':  str(query.query)})
                 if not query:
                     return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Items Not available', 'Data': []})
@@ -121,6 +133,12 @@ class M_ItemsView(CreateAPIView):
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
         
+
+class M_ItemsView(CreateAPIView):
+    
+    permission_classes = (IsAuthenticated,)
+    # authentication_class = JSONWebTokenAuthentication
+    
     @transaction.atomic()
     def post(self, request):
         try:
@@ -154,7 +172,7 @@ class M_ItemsView(CreateAPIView):
 class M_ItemsViewSecond(CreateAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request,id=0):
@@ -308,6 +326,7 @@ class M_ItemsViewSecond(CreateAPIView):
                             "BaseUnitID": a['BaseUnitID']['id'],
                             "BaseUnitName": a['BaseUnitID']['Name'],
                             "BarCode": a['BarCode'],
+                            "SAPItemCode":a['SAPItemCode'],
                             "Sequence": a['Sequence'],
                             "isActive":a['isActive'] ,
                             "IsSCM":a['IsSCM'] ,
@@ -381,7 +400,7 @@ class M_ItemsViewSecond(CreateAPIView):
 class M_ImageTypesView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def get(self, request):

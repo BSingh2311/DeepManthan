@@ -91,7 +91,7 @@ class ItemSerializer(serializers.ModelSerializer):
    
     class Meta:
         model = M_Items
-        fields = ['Name', 'ShortName', 'Sequence', 'Company', 'BaseUnitID', 'BarCode', 'isActive', 'IsSCM', 'CanBeSold', 'CanBePurchase', 'BrandName', 'Tag', 'CreatedBy', 'UpdatedBy','ItemCategoryDetails','ItemGroupDetails', 'ItemUnitDetails', 'ItemImagesDetails', 'ItemDivisionDetails', 'ItemMRPDetails', 'ItemMarginDetails', 'ItemGSTHSNDetails', 'ItemShelfLife' ]
+        fields = ['Name', 'ShortName', 'Sequence', 'Company', 'BaseUnitID', 'BarCode','SAPItemCode', 'isActive', 'IsSCM', 'CanBeSold', 'CanBePurchase', 'BrandName', 'Tag', 'CreatedBy', 'UpdatedBy','ItemCategoryDetails','ItemGroupDetails', 'ItemUnitDetails', 'ItemImagesDetails', 'ItemDivisionDetails', 'ItemMRPDetails', 'ItemMarginDetails', 'ItemGSTHSNDetails', 'ItemShelfLife' ]
        
     def create(self, validated_data):
         ItemCategorys_data = validated_data.pop('ItemCategoryDetails')
@@ -150,6 +150,8 @@ class ItemSerializer(serializers.ModelSerializer):
             'BaseUnitID', instance.BaseUnitID)
         instance.BarCode = validated_data.get(
             'BarCode', instance.BarCode)
+        instance.SAPItemCode = validated_data.get(
+            'SAPItemCode', instance.SAPItemCode)
         instance.isActive = validated_data.get(
             'isActive', instance.isActive)
         instance.IsSCM = validated_data.get(
@@ -231,7 +233,7 @@ class CompanySerializerSecond(serializers.ModelSerializer):
 class UnitSerializerSecond(serializers.ModelSerializer):
     class Meta:
         model = M_Units
-        fields = ['id','Name']
+        fields = ['id','Name','SAPUnit']
         
 class ItemGSTHSNSerializerSecond(serializers.ModelSerializer):
     Company = CompanySerializerSecond(read_only=True)

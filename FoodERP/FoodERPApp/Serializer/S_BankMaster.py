@@ -7,14 +7,24 @@ class BankSerializer(serializers.ModelSerializer):
         model =  M_Bank
         fields = '__all__'
 
-class BankSerializerSecond(serializers.ModelSerializer):
+class PartyBanksSerializer(serializers.ModelSerializer):
+    Bank = BankSerializer(read_only=True)
     class Meta:
-        model =  M_Bank
+        model = MC_PartyBanks
         fields = '__all__'
-
-class BankSerializerSecond(serializers.ModelSerializer):
-    BankMaster = BankSerializerSecond(read_only=True)
+        
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        data = super(PartyBanksSerializer, self).to_representation(instance)
+        data['Bank'] = instance.Bank.id
+        data['BankName'] = instance.Bank.Name
+        return data
+    
+class PartyBanksSerializerSecond(serializers.ModelSerializer):
     class Meta:
-        model = M_Bank
-        fields = '__all__' 
+        model = MC_PartyBanks
+        fields = '__all__'                
+
+
+         
         

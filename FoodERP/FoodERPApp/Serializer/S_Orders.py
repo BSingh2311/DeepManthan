@@ -28,7 +28,7 @@ class TC_OrderItemsSerializer(serializers.ModelSerializer):
     
    class Meta:
         model = TC_OrderItems
-        fields = ['Item','Quantity','MRP','Rate','Unit','BaseUnitQuantity','GST','Margin','BasicAmount','GSTAmount','CGST','SGST','IGST','CGSTPercentage','SGSTPercentage','IGSTPercentage','Amount','IsDeleted','Comment']
+        fields = ['Item','Quantity','MRP','Rate','Unit','BaseUnitQuantity','GST','Margin','BasicAmount','GSTAmount','CGST','SGST','IGST','CGSTPercentage','SGSTPercentage','IGSTPercentage','Amount','IsDeleted','Comment','MRPValue','GSTPercentage']
 
 class TC_OrderTermsAndConditionsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -136,17 +136,29 @@ class T_OrderSerializerSecond(serializers.ModelSerializer):
     class Meta:
         model = T_Orders
         fields = '__all__'
+        
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(T_OrderSerializerSecond, self).to_representation(instance)
+        # if parent is None, overwrite
+        if not ret.get("BillingAddress", None):
+            ret["BillingAddress"] = {"id": None, "Address": None}
+            
+        if not ret.get("ShippingAddress", None):
+            ret["ShippingAddress"] = {"id": None, "Address": None}    
+        return ret    
+        
 
 class PartiesSerializerThird(serializers.ModelSerializer):
     class Meta:
         model = M_Parties
-        fields = ['id','Name']
+        fields = ['id','Name','SAPPartyCode']
 
 
 class UnitSerializerThird(serializers.ModelSerializer):
     class Meta:
         model = M_Units
-        fields = ['id','Name']
+        fields = ['id','Name','SAPPartyCode']
         
 class Mc_ItemUnitSerializerThird(serializers.ModelSerializer):
     UnitID = UnitSerializerSecond(read_only=True)
@@ -241,7 +253,7 @@ class OrderEditserializer(serializers.Serializer):
     IGSTPercentage=serializers.DecimalField(max_digits=10, decimal_places=2)
     Amount=serializers.DecimalField(max_digits=10, decimal_places=2)  
     Comment=serializers.CharField(max_length=100) 
-    
+    SAPItemCode=serializers.CharField(max_length=100)
     
     
 class TestGRNReferanceSerializer(serializers.ModelSerializer):

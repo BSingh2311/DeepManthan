@@ -2,7 +2,7 @@ import datetime
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 
@@ -20,7 +20,7 @@ from django.db.models import *
 class GRNListFilterView(CreateAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def post(self, request):
@@ -45,12 +45,13 @@ class GRNListFilterView(CreateAPIView):
                         query, many=True).data
                     GRNListData = list()
                     for a in GRN_serializer:
-                        
+                       
                         challan = a['GRNReferences'][0]['Challan']
                         if challan != None: 
                             POType= ""
                         else:
-                            POType= a['GRNReferences'][0]['Order']['POType']['id']
+                              POType= ""
+                            # POType= a['GRNReferences'][0]['Order']['POType']['id']
                         GRNListData.append({
                             "id": a['id'],
                             "GRNDate": a['GRNDate'],
@@ -75,7 +76,7 @@ class GRNListFilterView(CreateAPIView):
 class T_GRNView(CreateAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def post(self, request):
@@ -168,7 +169,7 @@ class T_GRNView(CreateAPIView):
 
 class T_GRNViewSecond(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request, id=0):
@@ -265,7 +266,7 @@ class T_GRNViewSecond(CreateAPIView):
 
 class GetOrderDetailsForGrnView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     def post(self, request, id=0):
         try:
@@ -276,7 +277,7 @@ class GetOrderDetailsForGrnView(CreateAPIView):
                 OrderData = list()
                 OrderItemDetails = list()
                 if Mode == 1:
-                    OrderQuery=T_Orders.objects.raw("SELECT t_orders.Supplier_id id,m_parties.Name SupplierName,sum(t_orders.OrderAmount) OrderAmount ,t_orders.Customer_id CustomerID FROM t_orders join m_parties on m_parties.id=t_orders.Supplier_id where t_orders.id IN %s group by t_orders.Supplier_id;",[Order_list])
+                    OrderQuery=T_Orders.objects.raw("SELECT T_Orders.Supplier_id id,M_Parties.Name SupplierName,sum(T_Orders.OrderAmount) OrderAmount ,T_Orders.Customer_id CustomerID FROM T_Orders join M_Parties on M_Parties.id=T_Orders.Supplier_id where T_Orders.id IN %s group by T_Orders.Supplier_id;",[Order_list])
                     if not OrderQuery:
                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Records Not Found', 'Data': []})
                     else:

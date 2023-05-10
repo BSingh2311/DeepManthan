@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 from django.contrib.sessions.backends.db import SessionStore
@@ -14,7 +14,7 @@ from ..models import *
 
 class DivisionsView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def get(self, request, id=0):
@@ -43,7 +43,7 @@ class DivisionsView(CreateAPIView):
 class M_PartiesFilterView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
     @transaction.atomic()
     def post(self, request):
         
@@ -62,26 +62,38 @@ class M_PartiesFilterView(CreateAPIView):
                 IsSCMCompany = Logindata['IsSCMCompany'] 
                
                 if (RoleID == 1): # SuperAdmin
-                  
+                   
                     q1=M_PartyType.objects.filter(Company=CompanyID)
                     query=M_Parties.objects.filter(PartyType__in = q1)
 
                 elif(RoleID == 2 and IsSCMCompany == 0): # Admin
-                   
+                  
                     q1=M_PartyType.objects.filter(Company=CompanyID,IsRetailer = 0)
-                    query=M_Parties.objects.filter(PartyType__in = q1)
+                    query=M_Parties.objects.filter(Company=CompanyID,PartyType__IsRetailer=0).select_related("PartyType")
 
                 elif(RoleID == 2 and IsSCMCompany == 1): # SCM Company Admin
-                  
-                    q0=C_Companies.objects.filter(CompanyGroup = CompanyGroupID,IsSCM = 1)
-                    q1=M_PartyType.objects.filter(Company__in=q0,IsRetailer = 0)
+                    
+                    q0=C_Companies.objects.filter(CompanyGroup = CompanyGroupID)
+                    
+                    q1=M_PartyType.objects.filter(Company__in=q0,IsRetailer = 0,IsSCM = 1)
                     query=M_Parties.objects.filter(PartyType__in = q1)
+                    
 
                 else:
-                    q0 = MC_PartySubParty.objects.filter(Party = PartyID).values('SubParty')
-                    query = M_Parties.objects.filter(id__in = q0)  
-
-
+                   
+                    
+                    q=M_Roles.objects.filter(id=RoleID).values("isSCMRole")
+                   
+                    if q[0]['isSCMRole'] == 1:
+                        
+                      
+                        q0 = MC_PartySubParty.objects.filter(Party = PartyID).values("SubParty")
+                       
+                        query = M_Parties.objects.filter(id__in = q0,PartyType__IsRetailer=1).select_related("PartyType")  
+                       
+                    else:
+                        q0 = MC_PartySubParty.objects.filter(Party = PartyID)
+                        query = M_Parties.objects.filter(id__in = q0)
                 # if PartyID == 0:
 
                 #     if(RoleID == 1 ):
@@ -106,7 +118,7 @@ class M_PartiesFilterView(CreateAPIView):
 class M_PartiesView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
     @transaction.atomic()
     def get(self, request):
         try:
@@ -137,7 +149,7 @@ class M_PartiesView(CreateAPIView):
 
 class M_PartiesViewSecond(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request, id=0):
@@ -157,9 +169,12 @@ class M_PartiesViewSecond(CreateAPIView):
                             "Party":a['Party']['id'],
                             "PartyName":a['Party']['Name']
                         })
-                  
-                    M_Parties_serializer.extend(PartySubPartyList)
-                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message': '', 'Data':M_Parties_serializer})
+                    list2 = list()
+                    list2.append({"Data":M_Parties_serializer[0],
+                                  "PartySubParty":PartySubPartyList})    
+                    # # M_Parties_serializer.update({"PartySubParty":list2})
+                    # M_Parties_serializer.extend(list2)
+                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message': '', 'Data':list2[0]})
                     
                     
         except Exception as e:

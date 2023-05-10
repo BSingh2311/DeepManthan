@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import transaction
 from rest_framework.parsers import JSONParser
 from ..Serializer.S_PartyItems import *
@@ -10,14 +10,14 @@ from ..models import *
 
 class PartyItemsListView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request, id=0):
         try:
             with transaction.atomic():
                 query = MC_PartyItems.objects.raw(
-                    '''select mc_partyitems.id,m_parties.Name, mc_partyitems.Party_id,count(mc_partyitems.Item_id)As Total From mc_partyitems join m_parties on m_parties.id=mc_partyitems.Party_id group by mc_partyitems.Party_id  ''')
+                    '''select MC_PartyItems.id,M_Parties.Name, MC_PartyItems.Party_id,count(MC_PartyItems.Item_id)As Total From MC_PartyItems join M_Parties on M_Parties.id=MC_PartyItems.Party_id group by MC_PartyItems.Party_id  ''')
                 if not query:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Items Not available', 'Data': []})
                 else:
@@ -35,18 +35,33 @@ class PartyItemsListView(CreateAPIView):
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
-
-
-class PartyItemsView(CreateAPIView):
+class PartyItemsFilterView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
-    def get(self, request, id=0):
+    def post(self, request):
         try:
             with transaction.atomic():
-                Itemquery= MC_PartyItems.objects.raw('''SELECT m_items.id,m_items.Name,ifnull(mc_partyitems.Party_id,0) Party_id,ifnull(m_parties.Name,'') PartyName from m_items left JOIN mc_partyitems ON mc_partyitems.item_id=m_items.id AND mc_partyitems.Party_id=%s left JOIN m_parties ON m_parties.id=mc_partyitems.Party_id''',([id]))
+                Logindata = JSONParser().parse(request)
+                UserID = Logindata['UserID']   
+                RoleID=  Logindata['RoleID']  
+                CompanyID=Logindata['CompanyID']
+                PartyID=Logindata['PartyID'] 
+                CompanyGroupID =Logindata['CompanyGroup'] 
+                IsSCMCompany = Logindata['IsSCMCompany']
+
                 
+
+                if IsSCMCompany == 1:
+                
+                    Itemquery= MC_PartyItems.objects.raw('''SELECT M_Items.id,M_Items.Name,ifnull(MC_PartyItems.Party_id,0) Party_id,ifnull(M_Parties.Name,'') PartyName from M_Items left JOIN MC_PartyItems ON MC_PartyItems.item_id=M_Items.id AND MC_PartyItems.Party_id=%s left JOIN M_Parties ON M_Parties.id=MC_PartyItems.Party_id where IsSCM=1 and M_Items.Company_id in (select id from C_Companies where CompanyGroup_id=%s ) ''',([PartyID],[CompanyGroupID]))
+                else:
+                    Itemquery= MC_PartyItems.objects.raw('''SELECT M_Items.id,M_Items.Name,ifnull(MC_PartyItems.Party_id,0) Party_id,ifnull(M_Parties.Name,'') PartyName from M_Items left JOIN MC_PartyItems ON MC_PartyItems.item_id=M_Items.id AND MC_PartyItems.Party_id=%s left JOIN M_Parties ON M_Parties.id=MC_PartyItems.Party_id where Company_id =%s ''',([PartyID],[CompanyID]))
+               
+                
+                
+                print(str(Itemquery.query))
                 if not Itemquery:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Items Not available', 'Data': []})
                 else:
@@ -64,6 +79,11 @@ class PartyItemsView(CreateAPIView):
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
+class PartyItemsView(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    # authentication__Class = JSONWebTokenAuthentication
+
+    
     @transaction.atomic()
     def post(self, request, id=0):
         try:

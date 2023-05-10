@@ -1,4 +1,5 @@
-from django.urls import re_path as url
+from django.urls import re_path as url ,path
+from rest_framework_simplejwt import views as jwt_views
 
 
 
@@ -106,17 +107,31 @@ from .Views.V_PartyWiseUpdate import *
 
 from .Views.V_Receipts import *
 
+from .Views.V_CreditDebit import *
+
+from .Views.V_CommFunction import *
+
+from .Views.V_ImportField import *
+
+from .Views.V_PurchaseReturn import *
+
+from .Views.V_MappingMaster import *
+
+from .Views.V_Dashboard import *
 urlpatterns = [
     
     # Master APIs IN Projects Add Page ,List Page
     url(r'test', AbcView.as_view()),
 # User 
+            path('api/token/', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
+            path('api/token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
             url(r'Registration', UserRegistrationView.as_view()),
             url(r'Login', UserLoginView.as_view()),
             url(r'ChangePassword', ChangePasswordView.as_view()),
             url(r'UserList/([0-9]+)$', UserListViewSecond.as_view()),
             url(r'UserList$', UserListView.as_view()),
             #PartyDropdownforloginpage/EmployeeID
+            # url(r'Muiltiple$', MultipleReceiptView.as_view()),
             # This below API used for Dropdown populated when user have multiple role and parties.
             url(r'PartyDropdownforloginpage/([0-9]+)$', UserPartiesForLoginPage.as_view()), 
             url(r'GetEmployeeForUserCreation$',GetEmployeeViewForUserCreation.as_view()),
@@ -125,6 +140,8 @@ urlpatterns = [
             url(r'UserPartiesForUserMaster/([0-9]+)$', UserPartiesViewSecond.as_view()),
             url(r'SendMail$', SendViewMail.as_view()),
             url(r'VerifyOTP$', VerifyOTPwithUserData.as_view()),
+            url(r'GetOpeningBalance$', GetOpeningBalanceView.as_view()),
+            
 
 # Modules 
             url(r'Modules/([0-9]+)$', H_ModulesViewSecond.as_view()),
@@ -221,7 +238,8 @@ urlpatterns = [
             url(r'Invoice$', InvoiceView.as_view()),
             url(r'GetOrderDetails$', OrderDetailsForInvoice.as_view()),
             url(r'InvoicesFilter$', InvoiceListFilterView.as_view()),
-            
+            url(r'InvoiceNoList$', InvoiceNoView.as_view()),
+            url(r'BulkInvoices$', BulkInvoiceView.as_view()),
             
 
 #Loading Sheet All APIs
@@ -293,7 +311,8 @@ urlpatterns = [
             url(r'PartiesFilter$', M_PartiesFilterView.as_view()),
             url(r'Divisions/([0-9]+)$', DivisionsView.as_view()),
             url(r'PriceList/([0-9]+)$', PriceListViewSecond.as_view()),
-            url(r'PriceList$', PriceListView.as_view()),        
+            url(r'PriceList$', PriceListView.as_view()), 
+            url(r'^CompanywisePriceLists/([0-9]+)$', CompanywisePriceListView.as_view()),         
             url(r'ImageTypes$', M_ImageTypesView.as_view()),
             url(r'GetVendorSupplierCustomer$',GetVendorSupplierCustomerListView.as_view()),
             # url(r'GetSupplier/([0-9]+)$',GetSupplierListView.as_view()),
@@ -336,17 +355,14 @@ urlpatterns = [
             url(r'SalesmanFilter$', SalesmanListView.as_view()), 
             url(r'Salesman/([0-9]+)$', SalesmanView.as_view()), 
             url(r'Salesman$', SalesmanView.as_view()),             
-
-# Creditlimit 
-            url(r'CreditlimitList$', CreditlimitListView.as_view()), 
-            url(r'Creditlimit$', CreditlimitView.as_view()),                 
-    
+                
+                   
 #Item All APIs======================================================================================
 
             url(r'Items/([0-9]+)$', M_ItemsViewSecond.as_view()),
+            url(r'ItemsFilter$', M_ItemsFilterView.as_view()),
             url(r'Items$', M_ItemsView.as_view()),
             url(r'ItemTag$',M_ItemTag.as_view()),
-           
             url(r'MCUnitDetails$',MCUnitDetailsView.as_view()),
             # Select Item and Get MCItemUnits
             # url(r'GetItemUnits$',M_ItemsViewThird.as_view()),
@@ -376,6 +392,7 @@ urlpatterns = [
 # PartyItemList
             url(r'PartyItem/([0-9]+)$',PartyItemsView.as_view()),
             url(r'PartyItem$',PartyItemsView.as_view()),
+            url(r'PartyItemFilter$',PartyItemsFilterView.as_view()),
             url(r'PartyItemList$',PartyItemsListView.as_view()),
     
 # Mrps
@@ -402,12 +419,51 @@ urlpatterns = [
             url(r'Bank/([0-9]+)$', BankView.as_view()),
             url(r'Bank$', BankView.as_view()),
             url(r'BankFilter$', BankListView.as_view()),
+            
+            url(r'PartyBanksFilter$', PartyBanksFilterView.as_view()),
+            url(r'PartyBankList$', PartyBanksListView.as_view()),
+            url(r'PartyBankSave$', PartyBanksSaveView.as_view()),
 
 # Receipt
             url(r'ReceiptInvoices$', ReceiptInvoicesView.as_view()),
             url(r'Receipt/([0-9]+)$', ReceiptView.as_view()),
+            url(r'Receipt$', ReceiptView.as_view()),
             url(r'ReceiptFilter$', ReceiptListView.as_view()),
-    
+            url(r'ReceiptNoList$', ReceiptNoView.as_view()),
+            
+# Make Receipts of Payment entries
+            url(r'MakeReceiptofPayment$', MakeReceiptOfPaymentListView.as_view()),
+            
+#CreditDebit 
+            url(r'CreditDebitNote$', CreditDebitNoteView.as_view()), 
+            url(r'CreditDebitNote/([0-9]+)$', CreditDebitNoteView.as_view()),   
+            url(r'CreditDebitNoteFilter$', CreditDebitNoteListView.as_view()), 
+
+#ImportField
+            url(r'ImportField$', ImportFieldSaveView.as_view()),  
+            url(r'ImportField/([0-9]+)$', ImportFieldSaveView.as_view()),  
+            url(r'ImportFieldList$', ImportFieldListView.as_view()),
+            url(r'PartyImportFieldFilter$', PartyImportFieldFilterView.as_view()),
+            url(r'PartyImportFieldSave$', PartyImportFieldView.as_view()),
+            
+# Sales Return
+            url(r'ReturnItemAdd/([0-9]+)$', ReturnItemAddView.as_view()),
+            url(r'PurchaseReturn/([0-9]+)$', PurchaseReturnView.as_view()),
+            url(r'PurchaseReturn$', PurchaseReturnView.as_view()),
+            url(r'PurchaseReturnFilter$', PurchaseReturnListView.as_view()),
+
+#MappingMaster
+            url(r'PartyCustomerMapping$', PartyCustomerMappingView.as_view()),
+            url(r'PartyCustomerMapping/([0-9]+)$', PartyCustomerMappingView.as_view()),
+            url(r'ItemsMapping$', PartyItemMappingMasterView.as_view()),
+            url(r'ItemsMapping/([0-9]+)$', PartyItemMappingMasterView.as_view()),
+            url(r'PartyUnitsMapping$', PartyUnitMappingMasterUnitsView.as_view()),
+            url(r'PartyUnitsMapping/([0-9]+)$', PartyUnitMappingMasterUnitsView.as_view()),
+
+
+# Single Invoice details view api for Purchase Return, CreditDebitnot
+            url(r'InvoiceReturnCRDR/([0-9]+)$', InvoiceViewThird.as_view()),               
+
 # RoleAccess========================================= 
             #SideMenu Partyid/Employeeid/CompanyID
             url(r'RoleAccess/([0-9]+)/([0-9]+)/([0-9]+)$', RoleAccessView.as_view()),
@@ -428,6 +484,9 @@ urlpatterns = [
             url(r'CopyRoleAccessabc$',CopyRoleAccessView.as_view()),
             url(r'RegenrateToken$', RegenrateToken.as_view()),
 
+#DashBoard
+            url(r'getdashboard/([0-9]+)$', DashBoardView.as_view()),
 
-     
+
+
 ]

@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 from ..Serializer.S_Employees import *
@@ -13,7 +13,7 @@ from django.db.models import F,Q
 class M_EmployeesFilterView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def post(self, request):
@@ -55,7 +55,7 @@ where M_Employees.CreatedBy=%s
                     EmployeesData = list()
                     for a in M_Employees_Serializer:
                         ID =a['id']
-                        query2 = MC_EmployeeParties.objects.raw('''SELECT Party_id as id, m_parties.Name FROM mc_employeeparties join m_parties on m_parties.id = mc_employeeparties.Party_id where Employee_id=%s''', [ID])
+                        query2 = MC_EmployeeParties.objects.raw('''SELECT Party_id as id, M_Parties.Name FROM MC_EmployeeParties join M_Parties on M_Parties.id = MC_EmployeeParties.Party_id where Employee_id=%s''', [ID])
                         EmployeepartiesData_Serializer = EmployeepartiesDataSerializer(query2, many=True).data
                         EmployeeParties = list()
                         for b in EmployeepartiesData_Serializer:
@@ -95,7 +95,7 @@ where M_Employees.CreatedBy=%s
 class M_EmployeesView(CreateAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def post(self, request):
@@ -117,7 +117,7 @@ class M_EmployeesView(CreateAPIView):
 class M_EmployeesViewSecond(RetrieveAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     def get(self, request, id=0):
         try:
@@ -139,7 +139,7 @@ JOIN M_Districts ON M_Districts.id=M_Employees.District_id where M_Employees.id=
                     
                     GetAllData = list()
 
-                    Employeeparties = MC_EmployeeParties.objects.raw('''SELECT Party_id as id, m_parties.Name FROM mc_employeeparties join m_parties on m_parties.id = mc_employeeparties.Party_id where Employee_id=%s''', ([id]))
+                    Employeeparties = MC_EmployeeParties.objects.raw('''SELECT Party_id as id, M_Parties.Name FROM MC_EmployeeParties join M_Parties on M_Parties.id = MC_EmployeeParties.Party_id where Employee_id=%s''', ([id]))
                     EmployeepartiesData_Serializer = EmployeepartiesDataSerializer(Employeeparties, many=True).data
                     
                     EmployeeParties = list()
@@ -211,7 +211,7 @@ JOIN M_Districts ON M_Districts.id=M_Employees.District_id where M_Employees.id=
 class ManagementEmployeeViewList(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def post(self, request):
@@ -232,7 +232,7 @@ class ManagementEmployeeViewList(CreateAPIView):
 class ManagementEmployeePartiesFilterView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication 
+    # authentication__Class = JSONWebTokenAuthentication 
     
     @transaction.atomic()
     def post(self, request):
@@ -266,7 +266,7 @@ class ManagementEmployeePartiesFilterView(CreateAPIView):
 class ManagementEmployeePartiesSaveView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def post(self, request):

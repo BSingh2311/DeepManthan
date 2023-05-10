@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 
@@ -9,13 +9,17 @@ from ..Serializer.S_EmployeeTypes import M_EmployeeTypeSerializer
 
 from ..Serializer.S_Companies import *
 
+from ..Serializer.S_Login import UserRegistrationSerializer
+
+from ..Serializer.S_Employees import M_EmployeesSerializer
+
 from ..models import C_Companies
 
 
 class C_CompaniesViewFilter(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
                    
     @transaction.atomic()
     def post(self, request):
@@ -62,7 +66,7 @@ class C_CompaniesViewFilter(CreateAPIView):
 class C_CompaniesView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
                    
     @transaction.atomic()
     def get(self, request,id=0):
@@ -102,17 +106,17 @@ class C_CompaniesView(CreateAPIView):
                 AdminDivisionDatalist=list()
                 Companiesdata = JSONParser().parse(request)
 
-
+                
                 AdminDivisionDatalist.append({
                         "Name": Companiesdata['Name']+' AdminDivision',
-                        "PartyType": 5,
+                        "PartyType": 1,
                         "Company": 1,
                         "PAN": "AAAAA1234A",
                         "Email": Companiesdata['EmailID'],
                         "MobileNo": Companiesdata['PhoneNo'],
                         "AlternateContactNo": "",
                         "State": 22,
-                        "District": 1,
+                        "District": 26,
                         "Taluka": 0,
                         "City": 0,
                         "GSTIN": Companiesdata['GSTIN'],
@@ -124,22 +128,87 @@ class C_CompaniesView(CreateAPIView):
                         "IsRetailer" : 0
                         
               })
-                # Companiesdata.update({"AdminDivisionDatalist" : AdminDivisionDatalist})
-                # print(Companiesdata)
-                Companies_Serializer = C_CompanySerializer(data=Companiesdata)
-                AdminDivisionDatalist_Serializer=M_PartySerializer(data=AdminDivisionDatalist[0])
-                # print(Companies_Serializer)
-                if Companies_Serializer.is_valid() and AdminDivisionDatalist_Serializer.is_valid():
-                    Companies_Serializer.save()
-                    ff=Companies_Serializer.data['id']
-                    AdminDivisionDatalist_Serializer.save()
-                    party=AdminDivisionDatalist_Serializer.data['id']
-                    M_Parties.objects.filter(id=party).update(Company=ff)
+                
+                EmployeeJSON = {
 
+                    "Name": Companiesdata['Name']+' Admin Employee',
+                    "Address": "pune",
+                    "Mobile": Companiesdata['PhoneNo'],
+                    "email": Companiesdata['EmailID'],
+                    "DOB": "1985-10-08",
+                    "PAN": "AAAAA1234A",
+                    "AadharNo": "123456789234",
+                    "working_hours": "9.00",
+                    "CreatedBy": 1,
+                    "UpdatedBy": 1,
+                    "Company": 1,
+                    "EmployeeType": 2,
+                    "State": 22,
+                    "District": 26,
+                    "EmployeeParties": [
+                        {"Party":  ""}
+                        ]
+
+                }
+                
+                UserJSON = {
+                    "LoginName": Companiesdata['Name']+' Admin',
+                    "password": "1234",
+                    "Employee": "1",
+                    "isActive": "1",
+                    "AdminPassword": "1234",
+                    "isSendOTP": "0",
+                    "isLoginUsingMobile": "0",
+                    "isLoginUsingEmail": "0",
+                    "CreatedBy": 1,
+                    "UpdatedBy": 1,
+                    "last_activity" : '2023-04-01 00:00:00',
+                    "UserRole": [
+                                {
+                                    "Party": "",
+                                    "Role": 2
+                                }
+                    ]
+                }
+
+                
+                
+                
+                Companies_Serializer = C_CompanySerializer(data=Companiesdata)
+                
+                AdminDivisionDatalist_Serializer=M_PartySerializer(data=AdminDivisionDatalist[0])
+                
+                Employee_Serializer = M_EmployeesSerializer(data=EmployeeJSON)
+                
+                UserRegistration_Serializer = UserRegistrationSerializer(data=UserJSON)
+                
+                
+
+                if Companies_Serializer.is_valid() and AdminDivisionDatalist_Serializer.is_valid() and Employee_Serializer.is_valid() and UserRegistration_Serializer.is_valid():
+                    
+                    Companies_Serializer.save()
+                    CompanyID=Companies_Serializer.data['id']
+                    
+                    AdminDivisionDatalist_Serializer.save()
+                    partyID=AdminDivisionDatalist_Serializer.data['id']
+                    M_Parties.objects.filter(id=partyID).update(Company=CompanyID)
+
+                    Employee_Serializer.save()
+                    EmployeeID=Employee_Serializer.data['id']
+                    M_Employees.objects.filter(id=EmployeeID).update(Company=CompanyID)
+                    MC_EmployeeParties.objects.filter(Employee=EmployeeID).update(Party=partyID)
+
+                    UserRegistration_Serializer.save()
+                    UserID=UserRegistration_Serializer.data['id']
+                    M_Users.objects.filter(id=UserID).update(Employee=EmployeeID)
+                    MC_UserRoles.objects.filter(User=UserID).update(Party=partyID)
+                    
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Company Save Successfully', 'Data':[]})
                 else:
                     transaction.set_rollback(True)
-                    return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':  AdminDivisionDatalist_Serializer.errors, 'Data':[]})
+                    return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':  Employee_Serializer.errors, 'Data':[]})
+        except IntegrityError:   
+            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':'Company used in another table', 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})   
             
@@ -148,7 +217,7 @@ class C_CompaniesView(CreateAPIView):
 class C_CompaniesViewSecond(CreateAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def get(self, request,id=0):
@@ -219,7 +288,7 @@ class C_CompaniesViewSecond(CreateAPIView):
 class GetCompanyByDivisionType(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request, id=0):
@@ -242,7 +311,7 @@ class GetCompanyByDivisionType(CreateAPIView):
 class GetCompanyByEmployeeType(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request, id=0):

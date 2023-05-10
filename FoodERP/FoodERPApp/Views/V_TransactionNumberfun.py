@@ -181,6 +181,41 @@ class GetMaxNumber:
                 a=a+1
         return a
     
+    def GetCreditDebitNumber(*args):
+        
+
+        MaxCreditDebitNumber=T_CreditDebitNotes.objects.filter(Party_id=args[0], NoteType= args[1]).values('NoteNo').order_by('-id')[:1]
+        # print(str(MaxReceiptNumber.query))
+        firstdatefinancial = date.today().strftime('%Y-04-01')
+        b=args[2]
+
+        if(not MaxCreditDebitNumber):
+            a=1
+        else:
+            if(b==firstdatefinancial):
+                a = 1
+            else: 
+                a=int(MaxCreditDebitNumber[0]['NoteNo'])
+                a=a+1
+        return a
+    
+    def GetPurchaseReturnNumber(*args):
+        
+        MaxReturnNumber=T_PurchaseReturn.objects.filter(Party_id=args[0]).values('ReturnNo').order_by('-id')[:1]
+        # print(str(MaxReceiptNumber.query))
+        firstdatefinancial = date.today().strftime('%Y-04-01')
+        b=args[1]
+
+        if(not MaxReturnNumber):
+            a=1
+        else:
+            if(b==firstdatefinancial):
+                a = 1
+            else: 
+                a=int(MaxReturnNumber[0]['ReturnNo'])
+                a=a+1
+        return a
+    
     
     
 
@@ -264,6 +299,31 @@ class GetPrifix:
             a=""
         else:
             a=Prifix[0]['Receiptprefix']
+        return a
+    
+    
+    def GetCRDRPrifix(*args):
+       
+        if (args[1]==37):
+            Prifix=MC_PartyPrefixs.objects.filter(Party_id=args[0]).values('Creditprefix')
+        else:
+            Prifix=MC_PartyPrefixs.objects.filter(Party_id=args[0]).values('Debitprefix')
+       
+        if not Prifix :
+            a=""
+        else:
+            if (args[1]==37):
+                a=Prifix[0]['Creditprefix']
+            else:
+                a=Prifix[0]['Debitprefix']               
+        return a
+    
+    def GetPurchaseReturnPrifix(*args):
+        Prifix=MC_PartyPrefixs.objects.filter(Party_id=args[0]).values('PurchaseReturnprefix')
+        if not Prifix :
+            a=""
+        else:
+            a=Prifix[0]['PurchaseReturnprefix']
         return a
     
     

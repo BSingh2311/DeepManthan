@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 
@@ -13,7 +13,7 @@ from ..models import M_Pages
 class M_PageTypeView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request):
@@ -31,13 +31,13 @@ class M_PageTypeView(CreateAPIView):
 class M_PagesView(CreateAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request):
         try:
             with transaction.atomic():
-                query = M_Pages.objects.raw('''SELECT p.id,p.Name,p.PageHeading,p.PageDescription,p.PageDescriptionDetails,p.isActive,p.DisplayIndex,p.Icon,p.ActualPagePath,m.ID ModuleID,m.Name ModuleName,p.RelatedPageID,p.IsDivisionRequired,p.IsEditPopuporComponent,p.CountLabel,p.ShowCountLabel,Rp.Name RelatedPageName,m_pagetype.Name PageTypeName FROM M_Pages p join H_Modules m on p.Module_id= m.ID left join M_Pages RP on p.RelatedPageID=RP.id join m_pagetype on m_pagetype.id= p.pagetype  Order By m.DisplayIndex,p.DisplayIndex ''')
+                query = M_Pages.objects.raw('''SELECT p.id,p.Name,p.PageHeading,p.PageDescription,p.PageDescriptionDetails,p.isActive,p.DisplayIndex,p.Icon,p.ActualPagePath,m.ID ModuleID,m.Name ModuleName,p.RelatedPageID,p.IsDivisionRequired,p.IsEditPopuporComponent,p.CountLabel,p.ShowCountLabel,RP.Name RelatedPageName,M_PageType.Name PageTypeName FROM M_Pages p join H_Modules m on p.Module_id= m.ID left join M_Pages RP on p.RelatedPageID=RP.id join M_PageType on M_PageType.id= p.pagetype  Order By m.DisplayIndex,p.DisplayIndex ''')
                 if not query:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Records Not available', 'Data': []})
                 else:
@@ -64,13 +64,13 @@ class M_PagesView(CreateAPIView):
 class M_PagesViewSecond(RetrieveAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request, id=0):
         try:
             with transaction.atomic():
-                HPagesdata = M_Pages.objects.raw('''SELECT p.id,p.Name,p.PageHeading,p.PageDescription,p.PageDescriptionDetails,p.isActive,p.DisplayIndex,p.Icon,p.ActualPagePath,m.ID ModuleID,m.Name ModuleName,p.RelatedPageID,p.IsDivisionRequired,p.IsEditPopuporComponent,p.CountLabel,p.ShowCountLabel,Rp.Name RelatedPageName,m_pagetype.Name PageTypeName FROM M_Pages p join H_Modules m on p.Module_id= m.ID left join M_Pages RP on p.RelatedPageID=RP.id join m_pagetype on m_pagetype.id= p.pagetype where p.id= %s''', [id])
+                HPagesdata = M_Pages.objects.raw('''SELECT p.id,p.Name,p.PageHeading,p.PageDescription,p.PageDescriptionDetails,p.isActive,p.DisplayIndex,p.Icon,p.ActualPagePath,m.ID ModuleID,m.Name ModuleName,p.RelatedPageID,p.IsDivisionRequired,p.IsEditPopuporComponent,p.CountLabel,p.ShowCountLabel,RP.Name RelatedPageName,M_PageType.Name PageTypeName FROM M_Pages p join H_Modules m on p.Module_id= m.ID left join M_Pages RP on p.RelatedPageID=RP.id join M_PageType on M_PageType.id= p.pagetype where p.id= %s''', [id])
                 
                 if not HPagesdata:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Records Not available', 'Data': []})
@@ -80,10 +80,10 @@ class M_PagesViewSecond(RetrieveAPIView):
                         HPagesdata, many=True).data
                     for a in HPagesserialize_data:
                         # bb=MC_PagePageAccess.objects.filter(PageID=id)
-                        bb = MC_PagePageAccess.objects.raw('''SELECT mc_pagepageaccess.Access_id id,h_pageaccess.Name Name 
-FROM mc_pagepageaccess 
-join h_pageaccess on h_pageaccess.ID=mc_pagepageaccess.Access_id 
-where mc_pagepageaccess.Page_id=%s''', [id])
+                        bb = MC_PagePageAccess.objects.raw('''SELECT MC_PagePageAccess.Access_id id,H_PageAccess.Name Name 
+FROM MC_PagePageAccess 
+join H_PageAccess on H_PageAccess.ID=MC_PagePageAccess.Access_id 
+where MC_PagePageAccess.Page_id=%s''', [id])
                         MC_PagePageAccess_data = MC_PagePageAccessSerializer(
                             bb, many=True).data
                         PageAccessListData = list()
@@ -101,7 +101,7 @@ where mc_pagepageaccess.Page_id=%s''', [id])
                             bb= aa[0]['RelatedPageID']
 
                         
-                        MasterPageFieldQuery = MC_PageFieldMaster.objects.raw('''SELECT mc_pagefieldmaster.id, ControlID, FieldLabel, IsCompulsory, DefaultSort, ListPageSeq, ShowInListPage, ShowInDownload, DownloadDefaultSelect,InValidMsg,mc_pagefieldmaster.ControlType_id,m_controltypemaster.Name CName, FieldValidation_id,m_fieldvalidations.Name FName,m_fieldvalidations.RegularExpression FROM mc_pagefieldmaster JOIN m_controltypemaster on m_controltypemaster.id=mc_pagefieldmaster.ControlType_id JOIN m_fieldvalidations on m_fieldvalidations.id=mc_pagefieldmaster.FieldValidation_id where mc_pagefieldmaster.Page_id=%s''', [bb])
+                        MasterPageFieldQuery = MC_PageFieldMaster.objects.raw('''SELECT MC_PageFieldMaster.id, ControlID, FieldLabel, IsCompulsory, DefaultSort, ListPageSeq, ShowInListPage, ShowInDownload, DownloadDefaultSelect,InValidMsg,MC_PageFieldMaster.ControlType_id,M_ControlTypeMaster.Name CName, FieldValidation_id,M_FieldValidations.Name FName,M_FieldValidations.RegularExpression FROM MC_PageFieldMaster JOIN M_ControlTypeMaster on M_ControlTypeMaster.id=MC_PageFieldMaster.ControlType_id JOIN M_FieldValidations on M_FieldValidations.id=MC_PageFieldMaster.FieldValidation_id where MC_PageFieldMaster.Page_id=%s''', [bb])
                         # return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': str(PageFieldQuery.query)})
 
                         MC_PageFieldMaster_data = MC_PageFieldMasterSerializerSecond(
@@ -109,6 +109,10 @@ where mc_pagepageaccess.Page_id=%s''', [id])
                         
                         MC_PageFieldMasterListData = list()
                         for c in MC_PageFieldMaster_data:
+                            
+                            FieldValidationsdata = M_FieldValidations.objects.filter(ControlType=c['ControlType_id'])
+                            FieldValidations_Serializer = FieldValidationsSerializer(FieldValidationsdata, many=True).data
+                           
                             MC_PageFieldMasterListData.append({
                                 
                                 "ControlID":  c['ControlID'],
@@ -125,19 +129,23 @@ where mc_pagepageaccess.Page_id=%s''', [id])
                                 "ShownloadDefaultSelect":c['DownloadDefaultSelect'],
                                 "RegularExpression":c['RegularExpression'],
                                 "InValidMsg":c['InValidMsg'],
+                                "FieldValidationlist":FieldValidations_Serializer
                                 
                             })
                         
                         MC_PageFieldListData = list()
                         
                         if(a['PageType']== 2):
-                            ListPageFieldQuery = MC_PageFieldMaster.objects.raw('''SELECT mc_pagefieldmaster.id, ControlID, FieldLabel, IsCompulsory, DefaultSort, ListPageSeq, ShowInListPage, ShowInDownload, DownloadDefaultSelect,InValidMsg,mc_pagefieldmaster.ControlType_id,m_controltypemaster.Name CName, FieldValidation_id,m_fieldvalidations.Name FName,m_fieldvalidations.RegularExpression FROM mc_pagefieldmaster JOIN m_controltypemaster on m_controltypemaster.id=mc_pagefieldmaster.ControlType_id JOIN m_fieldvalidations on m_fieldvalidations.id=mc_pagefieldmaster.FieldValidation_id where mc_pagefieldmaster.Page_id=%s''', [id])
+                            ListPageFieldQuery = MC_PageFieldMaster.objects.raw('''SELECT MC_PageFieldMaster.id, ControlID, FieldLabel, IsCompulsory, DefaultSort, ListPageSeq, ShowInListPage, ShowInDownload, DownloadDefaultSelect,InValidMsg,MC_PageFieldMaster.ControlType_id,M_ControlTypeMaster.Name CName, FieldValidation_id,M_FieldValidations.Name FName,M_FieldValidations.RegularExpression FROM MC_PageFieldMaster JOIN M_ControlTypeMaster on M_ControlTypeMaster.id=MC_PageFieldMaster.ControlType_id JOIN M_FieldValidations on M_FieldValidations.id=MC_PageFieldMaster.FieldValidation_id where MC_PageFieldMaster.Page_id=%s''', [id])
                            
                             MC_PageFieldMaster_data = MC_PageFieldMasterSerializerSecond(
                                 ListPageFieldQuery, many=True).data
                             
                             
                             for c in MC_PageFieldMaster_data:
+                                FieldValidationsdata = M_FieldValidations.objects.filter(ControlType=c['ControlType_id'])
+                                FieldValidations_Serializer = FieldValidationsSerializer(FieldValidationsdata, many=True).data
+                                
                                 MC_PageFieldListData.append({
                                     
                                     "ControlID":  c['ControlID'],
@@ -154,6 +162,7 @@ where mc_pagepageaccess.Page_id=%s''', [id])
                                     "ShownloadDefaultSelect":c['DownloadDefaultSelect'],
                                     "RegularExpression":c['RegularExpression'],
                                     "InValidMsg":c['InValidMsg'],
+                                    "FieldValidationlist":FieldValidations_Serializer
                                     
                                 })    
                         
@@ -223,7 +232,7 @@ where mc_pagepageaccess.Page_id=%s''', [id])
 class showPagesListOnPageType(RetrieveAPIView):
 
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request):
@@ -245,7 +254,7 @@ class showPagesListOnPageType(RetrieveAPIView):
 class PagesMasterForRoleAccessView(RetrieveAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def get(self, request, id=0):
@@ -253,7 +262,7 @@ class PagesMasterForRoleAccessView(RetrieveAPIView):
             with transaction.atomic():
                 HPagesdata = M_Pages.objects.raw('''SELECT p.id,p.Name,p.PageHeading,p.PageDescription,p.PageDescriptionDetails,p.isActive,p.DisplayIndex,p.Icon,p.ActualPagePath,
 m.ID ModuleID,m.Name ModuleName,p.RelatedPageID,
-Rp.Name RelatedPageName 
+RP.Name RelatedPageName 
 FROM M_Pages p 
 join H_Modules m on p.Module_id= m.ID
 left join M_Pages RP on p.RelatedPageID=RP.id where p.id= %s''', [id])
@@ -265,10 +274,10 @@ left join M_Pages RP on p.RelatedPageID=RP.id where p.id= %s''', [id])
                         HPagesdata, many=True).data
                     for a in HPagesserialize_data:
                         # bb=MC_PagePageAccess.objects.filter(PageID=id)
-                        bb = MC_PagePageAccess.objects.raw('''SELECT mc_pagepageaccess.Access_id id,h_pageaccess.Name Name 
-FROM mc_pagepageaccess 
-join h_pageaccess on h_pageaccess.ID=mc_pagepageaccess.Access_id 
-where mc_pagepageaccess.Page_id=%s''', [id])
+                        bb = MC_PagePageAccess.objects.raw('''SELECT MC_PagePageAccess.Access_id id,H_PageAccess.Name Name 
+FROM MC_PagePageAccess 
+join H_PageAccess on H_PageAccess.ID=MC_PagePageAccess.Access_id 
+where MC_PagePageAccess.Page_id=%s''', [id])
                         MC_PagePageAccess_data = MC_PagePageAccessSerializer(
                             bb, many=True).data
                         PageAccessListData = list()
@@ -299,7 +308,7 @@ where mc_pagepageaccess.Page_id=%s''', [id])
 class ControlTypeMasterView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def get(self, request):
@@ -316,7 +325,7 @@ class ControlTypeMasterView(CreateAPIView):
 class FieldValidationsView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication_class = JSONWebTokenAuthentication
+    # authentication_class = JSONWebTokenAuthentication
     
     @transaction.atomic()
     def get(self, request,id=0):

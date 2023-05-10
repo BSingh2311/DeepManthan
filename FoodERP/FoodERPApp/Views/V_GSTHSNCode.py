@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 from ..Serializer.S_GSTHSNCode import *
@@ -13,14 +13,14 @@ from ..models import *
 class M_GstHsnCodeView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     
     @transaction.atomic()
     def get(self, request):
         try:
             with transaction.atomic():
-                GstHsndata = M_GSTHSNCode.objects.raw('''SELECT m_gsthsncode.id,m_gsthsncode.EffectiveDate,m_gsthsncode.Company_id,m_gsthsncode.CommonID,m_gsthsncode.CreatedBy,m_gsthsncode.CreatedOn,c_companies.Name CompanyName  FROM m_gsthsncode left join c_companies on c_companies.id = m_gsthsncode.Company_id where m_gsthsncode.CommonID > 0 AND m_gsthsncode.IsDeleted=0  group by EffectiveDate,CommonID Order BY EffectiveDate Desc''')
+                GstHsndata = M_GSTHSNCode.objects.raw('''SELECT M_GSTHSNCode.id,M_GSTHSNCode.EffectiveDate,M_GSTHSNCode.Company_id,M_GSTHSNCode.CommonID,M_GSTHSNCode.CreatedBy,M_GSTHSNCode.CreatedOn,C_Companies.Name CompanyName  FROM M_GSTHSNCode left join C_Companies on C_Companies.id = M_GSTHSNCode.Company_id where M_GSTHSNCode.CommonID > 0 AND M_GSTHSNCode.IsDeleted=0  group by EffectiveDate,CommonID Order BY EffectiveDate Desc''')
                 # print(str(MRPdata.query))
                 if not GstHsndata:
                     return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'GST And HSNCode Not available', 'Data': []})
@@ -57,7 +57,7 @@ class M_GstHsnCodeView(CreateAPIView):
 ''' GST HSNCode Master List Delete Api Depend on ID '''
 class M_GSTHSNCodeViewSecond(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def delete(self, request, id=0):
@@ -77,7 +77,7 @@ class M_GSTHSNCodeViewSecond(CreateAPIView):
 ''' GST HSNCode Master List Delete Api Depend on CommonID '''
 class M_GSTHSNCodeViewThird(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
 
     @transaction.atomic()
     def delete(self, request, id=0):
@@ -99,7 +99,7 @@ class M_GSTHSNCodeViewThird(CreateAPIView):
 
 class GETGstHsnDetails(CreateAPIView): 
     permission_classes = (IsAuthenticated,)
-    authentication__Class = JSONWebTokenAuthentication
+    # authentication__Class = JSONWebTokenAuthentication
     @transaction.atomic()
     def post(self, request):
         try:
