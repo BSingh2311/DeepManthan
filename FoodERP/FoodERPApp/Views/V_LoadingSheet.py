@@ -9,7 +9,6 @@ from ..Serializer.S_Invoices import *
 from ..models import *
 from ..Views.V_TransactionNumberfun import GetMaxNumber
 
-
 class LoadingSheetListView(CreateAPIView):
     
     permission_classes = (IsAuthenticated,)
@@ -32,7 +31,7 @@ class LoadingSheetListView(CreateAPIView):
                             "id": a['id'],
                             "Date": a['Date'],
                             "LoadingSheetNo": a['No'],
-                            "Route Name": a['Route']['Name'],
+                            "RouteName": a['Route']['Name'],
                             "TotalAmount": a['TotalAmount'],
                             "InvoiceCount": a['InvoiceCount'],
                             "VehicleNo": a['Vehicle']['VehicleNumber'],

@@ -5,10 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 from django.contrib.sessions.backends.db import SessionStore
-
-
 from ..Serializer.S_Parties import *
-
 from ..models import *
 
 
@@ -66,7 +63,7 @@ class M_PartiesFilterView(CreateAPIView):
                     q1=M_PartyType.objects.filter(Company=CompanyID)
                     query=M_Parties.objects.filter(PartyType__in = q1)
 
-                elif(RoleID == 2 and IsSCMCompany == 0): # Admin
+                elif(IsSCMCompany == 0): # Admin
                   
                     q1=M_PartyType.objects.filter(Company=CompanyID,IsRetailer = 0)
                     query=M_Parties.objects.filter(Company=CompanyID,PartyType__IsRetailer=0).select_related("PartyType")
@@ -167,7 +164,10 @@ class M_PartiesViewSecond(CreateAPIView):
                     for a in PartySubParty_Serializer:
                         PartySubPartyList.append({
                             "Party":a['Party']['id'],
-                            "PartyName":a['Party']['Name']
+                            "PartyName":a['Party']['Name'],
+                            "Subparty":a['SubParty'],
+                            "Creditlimit":a['Creditlimit'],
+                            "Route":a['Route_id']
                         })
                     list2 = list()
                     list2.append({"Data":M_Parties_serializer[0],
@@ -186,7 +186,7 @@ class M_PartiesViewSecond(CreateAPIView):
             with transaction.atomic():
                 M_Partiesdata = JSONParser().parse(request)
                 M_PartiesdataByID = M_Parties.objects.get(id=id)
-                M_Parties_Serializer = M_PartiesSerializer(
+                M_Parties_Serializer = UpdateM_PartiesSerializer(
                     M_PartiesdataByID, data=M_Partiesdata)
                 if M_Parties_Serializer.is_valid():
                     M_Parties_Serializer.save()
@@ -195,7 +195,7 @@ class M_PartiesViewSecond(CreateAPIView):
                     transaction.set_rollback(True)
                     return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': M_Parties_Serializer.errors,'Data' : []})
         except Exception as e :
-            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message': Exception(e),'Data' : []})
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':Exception(e),'Data' : []})
 
     @transaction.atomic()
     def delete(self, request, id=0):

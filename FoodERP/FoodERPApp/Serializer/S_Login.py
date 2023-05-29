@@ -2,11 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 # from rest_framework_jwt.settings import api_settings
 from django.contrib.auth.models import update_last_login
-
 from  ..models import C_CompanyGroups, M_Employees, M_Parties, M_Roles, M_Users, MC_UserRoles,C_Companies
-
 from rest_framework import serializers
-
 from ..models import M_Users
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -91,9 +88,11 @@ class UserLoginSerializer(serializers.Serializer):
     LoginName = serializers.CharField(max_length=255)
     password = serializers.CharField(max_length=128, write_only=True)
     token = serializers.CharField(max_length=255, read_only=True)
+    refreshtoken = serializers.CharField(max_length=255, read_only=True)
     EmployeeID = serializers.CharField(max_length=255, read_only=True)
     UserID= serializers.CharField(max_length=255, read_only=True)
 
+    
     def validate(self, data):
         LoginName = data.get("LoginName", None)
         password = data.get("password", None)
@@ -107,9 +106,11 @@ class UserLoginSerializer(serializers.Serializer):
                 'A user with this LoginName and password is not found.'
             )
         try:
-            # payload = JWT_PAYLOAD_HANDLER(user)
-            # jwt_token = JWT_ENCODE_HANDLER(payload)
+            
             refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
+            
 
             
 
@@ -121,9 +122,9 @@ class UserLoginSerializer(serializers.Serializer):
         return {
             'LoginName': user.LoginName,
             'EmployeeID':user.Employee_id,
-            'token': str(refresh.access_token),
+            'token': access_token,
             'UserID' : user.id,
-            'refresh': str(refresh)
+            'refreshtoken': refresh_token
         }
 
 
@@ -198,6 +199,7 @@ class ChangePasswordSerializer(serializers.Serializer):
             
            
             user.set_password(newpassword)
+            user.AdminPassword = newpassword
             user.save()
            
             
@@ -209,7 +211,6 @@ class ChangePasswordSerializer(serializers.Serializer):
             'LoginName': user.LoginName
             
         }
-
 
 
 class C_CompanyGroupSerializer(serializers.ModelSerializer):

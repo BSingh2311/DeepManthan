@@ -7,7 +7,6 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 
-
 class PartyBanksFilterView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
     # authentication__Class = JSONWebTokenAuthentication
@@ -81,7 +80,7 @@ class BankListView(CreateAPIView):
     def get(self,request,id=0):
         try:
             with transaction.atomic():
-                query = M_Bank.objects.all()
+                query = M_Bank.objects.filter(Company = id)
                 if query:
                     bank_serializer = BankSerializer(query, many=True).data
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data' :bank_serializer})

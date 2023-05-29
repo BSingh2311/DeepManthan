@@ -1,10 +1,10 @@
 from django.http import JsonResponse
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-# from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 from ..Views.V_TransactionNumberfun import GetMaxNumber, GetPrifix
+from ..Views.V_CommFunction import *
 from ..Serializer.S_Orders import *
 from ..Serializer.S_Items import *
 from ..Serializer.S_PartyItems import *
@@ -85,6 +85,12 @@ class OrderListFilterView(CreateAPIView):
                         for c in a['OrderReferences']:
                             if(c['Inward'] == 1):
                                 inward = 1
+
+                        Count = TC_InvoicesReferences.objects.filter(Order = a['id']).count()
+                        if Count == 0 :
+                            InvoiceCreated = False
+                        else:
+                            InvoiceCreated = True 
                         OrderListData.append({
                             "id": a['id'],
                             "OrderDate": a['OrderDate'],
@@ -100,6 +106,7 @@ class OrderListFilterView(CreateAPIView):
                             "POType" : a['POType']['Name'],
                             "BillingAddress": a['BillingAddress']['Address'],
                             "ShippingAddress": a['ShippingAddress']['Address'],
+                            "InvoiceCreated": InvoiceCreated,
                             "CreatedBy": a['CreatedBy'],
                             "CreatedOn": a['CreatedOn'],
                             "Inward": inward
@@ -281,7 +288,8 @@ class T_OrdersView(CreateAPIView):
                 Order_serializer = T_OrderSerializer(data=Orderdata)
                 if Order_serializer.is_valid():
                     Order_serializer.save()
-                    return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Order Save Successfully', 'Data': []})
+                    OrderID=Order_serializer.data['id']
+                    return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Order Save Successfully' ,'OrderID':OrderID, 'Data': []})
                 return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': Order_serializer.errors, 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
@@ -318,6 +326,7 @@ class T_OrdersViewSecond(CreateAPIView):
                                     "ItemName": b['Item']['Name'],
                                     "ItemSAPCode": b['Item']['SAPItemCode'],
                                     "Quantity": b['Quantity'],
+                                    "QuantityInNo": UnitwiseQuantityConversion(b['Item']['id'],b['Quantity'],b['Unit']['id'],0,0,1,0).ConvertintoSelectedUnit(),
                                     "MRP": b['MRP']['id'],
                                     "MRPValue": b['MRP']['MRP'],
                                     "Rate": b['Rate'],
@@ -345,6 +354,7 @@ class T_OrdersViewSecond(CreateAPIView):
                         for c in a['OrderReferences']:
                             if(c['Inward'] == 1):
                                 inward = 1
+                        Address=GetPartyAddressDetails(a['Supplier']['id']).PartyAddress()
 
                         OrderData.append({
                             "id": a['id'],
@@ -364,6 +374,7 @@ class T_OrdersViewSecond(CreateAPIView):
                             "Supplier": a['Supplier']['id'],
                             "SupplierSAPCode":a['Supplier']['SAPPartyCode'],
                             "SupplierName": a['Supplier']['Name'],
+                            "SupplierFssai":Address[0]['FSSAINo'],
                             "BillingAddressID": a['BillingAddress']['id'],
                             "BillingAddress": a['BillingAddress']['Address'],
                             "BillingFssai": a['BillingAddress']['FSSAINo'],
@@ -436,32 +447,37 @@ class EditOrderView(CreateAPIView):
                 EffectiveDate = request.data['EffectiveDate']
                 OrderID = request.data['OrderID']
 
-                Itemquery = TC_OrderItems.objects.raw('''select a.id, a.Item_id,M_Items.Name ItemName,a.Quantity,a.MRP_id,M_MRPMaster.MRP MRPValue,a.Rate,a.Unit_id,M_Units.Name UnitName,a.BaseUnitQuantity,a.GST_id,M_GSTHSNCode.GSTPercentage,
-M_GSTHSNCode.HSNCode,a.Margin_id,M_MarginMaster.Margin MarginValue,a.BasicAmount,a.GSTAmount,a.CGST,a.SGST,a.IGST,a.CGSTPercentage,a.SGSTPercentage,a.IGSTPercentage,a.Amount,a.Comment,M_Items.Sequence ,M_Items.SAPItemCode
+                Itemquery = TC_OrderItems.objects.raw('''select a.Item id, a.Item_id,M_Items.Name ItemName,a.Quantity,a.MRP_id,M_MRPMaster.MRP MRPValue,a.Rate,a.Unit_id,M_Units.Name UnitName,a.BaseUnitQuantity,a.GST_id,M_GSTHSNCode.GSTPercentage,
+M_GSTHSNCode.HSNCode,a.Margin_id,M_MarginMaster.Margin MarginValue,a.BasicAmount,a.GSTAmount,a.CGST,a.SGST,a.IGST,a.CGSTPercentage,a.SGSTPercentage,a.IGSTPercentage,a.Amount,a.Comment,M_Items.Sequence ,M_Items.SAPItemCode,M_Units.SAPUnit SAPUnitName
                 from
-((SELECT 0 id,`Item_id`,`Quantity`, `MRP_id`, `Rate`, `Unit_id`, `BaseUnitQuantity`, `GST_id`, `Margin_id`, `BasicAmount`, `GSTAmount`, `CGST`, `SGST`, `IGST`, `CGSTPercentage`, `SGSTPercentage`, `IGSTPercentage`, `Amount`,`Comment`
-FROM `TC_OrderItems` WHERE (`TC_OrderItems`.`IsDeleted` = False AND `TC_OrderItems`.`Order_id` = %s)) 
-UNION 
-(SELECT 1 id,`Item_id`, NULL AS `Quantity`, NULL AS `MRP`, NULL AS `Rate`, NULL AS `Unit`, NULL AS `BaseUnitQuantity`, NULL AS `GST`, NULL AS `Margin`, NULL AS `BasicAmount`, NULL AS `GSTAmount`, NULL AS `CGST`, NULL AS `SGST`, NULL AS `IGST`, NULL AS `CGSTPercentage`, NULL AS `SGSTPercentage`, NULL AS `IGSTPercentage`, NULL AS `Amount`,NULL AS `Comment` 
-FROM `MC_PartyItems` WHERE `MC_PartyItems`.`Party_id` = %s))a
-join M_Items on M_Items.id=a.Item_id 
+(select * from (SELECT `Item_id` FROM `MC_PartyItems` WHERE `MC_PartyItems`.`Party_id` = %s)b 
+left join
+
+(SELECT `Item_id` Item,`Quantity`, `MRP_id`, `Rate`, `Unit_id`, `BaseUnitQuantity`, `GST_id`, `Margin_id`, `BasicAmount`, `GSTAmount`, `CGST`, `SGST`, `IGST`, `CGSTPercentage`, `SGSTPercentage`, `IGSTPercentage`, `Amount`,`Comment`
+FROM `TC_OrderItems` WHERE (`TC_OrderItems`.`IsDeleted` = False AND `TC_OrderItems`.`Order_id` = %s))c
+on b.Item_id=c.Item )a
+
+
+join M_Items on M_Items.id=Item_id 
 left join M_MRPMaster on M_MRPMaster.id =a.MRP_id
 left join MC_ItemUnits on MC_ItemUnits.id=a.Unit_id
 left join M_Units on M_Units.id=MC_ItemUnits.UnitID_id
 left join M_GSTHSNCode on M_GSTHSNCode.id=a.GST_id
-left join M_MarginMaster on M_MarginMaster.id=a.Margin_id group by Item_id Order By M_Items.Sequence''', ([OrderID], [PartyItem]))
-                
+left join M_MarginMaster on M_MarginMaster.id=a.Margin_id group by Item_id Order By M_Items.Sequence''', ([PartyItem],[OrderID]))
+               
                 OrderItemSerializer = OrderEditserializer(Itemquery, many=True).data
-                
+               
                 for b in OrderItemSerializer:
                     ItemID = b['Item_id']
                     GSTID = b['GST_id']
+                    # print('**********************',ItemID)
             # =====================GST================================================
                     if GSTID is None:
                         Gst = GSTHsnCodeMaster(
                             ItemID, EffectiveDate).GetTodaysGstHsnCode()
                         b['GST_id'] = Gst[0]['Gstid']
                         b['GSTPercentage'] = Gst[0]['GST']
+                        # print('ttttttGST',Gst[0]['GST'])
             # =====================Stock================================================
 
                     stockquery = O_BatchWiseLiveStock.objects.filter(
@@ -473,10 +489,10 @@ left join M_MarginMaster on M_MarginMaster.id=a.Margin_id group by Item_id Order
                         
             # =====================Current MRP================================================
                     TodaysMRP=MRPMaster(ItemID,0,0,EffectiveDate).GetTodaysDateMRP()
-                    print(TodaysMRP)
+                  
                     b['MRP_id'] = TodaysMRP[0]['Mrpid']
                     b['MRPValue'] = TodaysMRP[0]['TodaysMRP']
-                        
+                    # print('ttttttttttMRP',TodaysMRP[0]['TodaysMRP'])   
             # =====================Rate================================================
 
                     ratequery = TC_OrderItems.objects.filter(
@@ -488,33 +504,34 @@ left join M_MarginMaster on M_MarginMaster.id=a.Margin_id group by Item_id Order
 
                     if b['Rate'] is None:
                         b['Rate'] = r
-            # =====================Unit================================================
-                    UnitDetails = list()
-                    ItemUnitquery = MC_ItemUnits.objects.filter(
-                        Item=ItemID, IsDeleted=0)
-                    ItemUnitqueryserialize = Mc_ItemUnitSerializerThird(
-                        ItemUnitquery, many=True).data
+            # # =====================Unit================================================
+            #         UnitDetails = list()
+            #         ItemUnitquery = MC_ItemUnits.objects.filter(
+            #             Item=ItemID, IsDeleted=0)
+            #         ItemUnitqueryserialize = Mc_ItemUnitSerializerThird(
+            #             ItemUnitquery, many=True).data
                     
-                    RateMcItemUnit = ""    
-                    for d in ItemUnitqueryserialize:
-                        if (d['PODefaultUnit'] == True):
-                            RateMcItemUnit = d['id']
-                        # CalculatedRateusingMRPMargin=RateCalculationFunction(0,ItemID,RateParty,0,0,d['id']).RateWithGST()
-                        UnitDetails.append({
-                            "UnitID": d['id'],
-                            "UnitName": d['BaseUnitConversion'] ,
-                            "BaseUnitQuantity": d['BaseUnitQuantity'],
-                            "PODefaultUnit": d['PODefaultUnit'],
-                            "SODefaultUnit": d['SODefaultUnit'],
-                            # "Rate" : CalculatedRateusingMRPMargin[0]["RateWithoutGST"]
+            #         RateMcItemUnit = ""    
+            #         for d in ItemUnitqueryserialize:
+            #             if (d['PODefaultUnit'] == True):
+            #                 RateMcItemUnit = d['id']
+            #             print(0,ItemID,RateParty,0,0,d['id'])
+            #             CalculatedRateusingMRPMargin=RateCalculationFunction(0,ItemID,RateParty,0,0,d['id']).RateWithGST()
+            #             UnitDetails.append({
+            #                 "UnitID": d['id'],
+            #                 "UnitName": d['BaseUnitConversion'] ,
+            #                 "BaseUnitQuantity": d['BaseUnitQuantity'],
+            #                 "PODefaultUnit": d['PODefaultUnit'],
+            #                 "SODefaultUnit": d['SODefaultUnit'],
+            #                 "Rate" : CalculatedRateusingMRPMargin[0]["RateWithoutGST"]
 
-                        })
+            #             })
              
                    
             # =====================IsDefaultTermsAndConditions================================================
 
                     b.update({"StockQuantity": Stock,
-                              "UnitDetails": UnitDetails
+                              "UnitDetails": UnitDropdown(ItemID,RateParty,0)
                               })
                     
                     bomquery = MC_BillOfMaterialItems.objects.filter(Item_id=ItemID,BOM__IsVDCItem=1).select_related('BOM')
@@ -526,7 +543,7 @@ left join M_MarginMaster on M_MarginMaster.id=a.Margin_id group by Item_id Order
                 if OrderID != 0:
                     OrderQuery = T_Orders.objects.get(id=OrderID)
                     a = T_OrderSerializerThird(OrderQuery).data
-
+                   
                     OrderTermsAndCondition = list()
                     for b in a['OrderTermsAndConditions']:
                         # print(b['TermsAndCondition']['IsDeleted'])

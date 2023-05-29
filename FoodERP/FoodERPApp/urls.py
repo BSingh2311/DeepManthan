@@ -1,6 +1,8 @@
 from django.urls import re_path as url ,path
 from rest_framework_simplejwt import views as jwt_views
 
+from .Views.V_SAPApi import *
+
 
 
 from .Views.V_ProductionReIssue import *
@@ -122,6 +124,9 @@ urlpatterns = [
     
     # Master APIs IN Projects Add Page ,List Page
     url(r'test', AbcView.as_view()),
+    url(r'SAPInvoice', SAPInvoiceView.as_view()),
+    url(r'SAPOrder', SAPOrderView.as_view()),
+    
 # User 
             path('api/token/', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
             path('api/token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
@@ -418,7 +423,7 @@ urlpatterns = [
 # BankMaster
             url(r'Bank/([0-9]+)$', BankView.as_view()),
             url(r'Bank$', BankView.as_view()),
-            url(r'BankFilter$', BankListView.as_view()),
+            url(r'BankFilter/([0-9]+)$', BankListView.as_view()),
             
             url(r'PartyBanksFilter$', PartyBanksFilterView.as_view()),
             url(r'PartyBankList$', PartyBanksListView.as_view()),
@@ -482,7 +487,7 @@ urlpatterns = [
             url(r'showPagesListOnPageType$', showPagesListOnPageType.as_view()),
             url(r'PageMasterForRoleAccess/([0-9]+)$', PagesMasterForRoleAccessView.as_view()),
             url(r'CopyRoleAccessabc$',CopyRoleAccessView.as_view()),
-            url(r'RegenrateToken$', RegenrateToken.as_view()),
+            # url(r'RegenrateToken$', RegenrateToken.as_view()),
 
 #DashBoard
             url(r'getdashboard/([0-9]+)$', DashBoardView.as_view()),

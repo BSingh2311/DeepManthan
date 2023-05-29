@@ -14,7 +14,6 @@ from ..models import *
 from datetime import date
 
 
-
 '''Common Functions List
 1) class MaxValueMaster -  GetMaxValue
 2) class MRPMaster - GetTodaysDateMRP, GetEffectiveDateMRP, GetEffectiveDateMRPID
@@ -27,6 +26,39 @@ from datetime import date
 
 
 '''
+
+def UnitDropdown(ItemID,PartyForRate,BatchID=0):
+    
+    UnitDetails = list()
+    ItemUnitquery = MC_ItemUnits.objects.filter(
+        Item=ItemID, IsDeleted=0)
+    ItemUnitqueryserialize = ItemUnitSerializer(
+        ItemUnitquery, many=True).data
+   
+    RateMcItemUnit = "" 
+    q= M_Parties.objects.filter(id=PartyForRate).select_related("PartyType").values("PartyType__IsSCM")
+   
+    for d in ItemUnitqueryserialize:
+        if (d['PODefaultUnit'] == True):
+            RateMcItemUnit = d['id']
+        if(q[0]['PartyType__IsSCM'] == 1):
+            CalculatedRateusingMRPMargin=RateCalculationFunction(0,ItemID,PartyForRate,0,0,d['id']).RateWithGST()
+            Rate=CalculatedRateusingMRPMargin[0]["RateWithoutGST"]
+        else:
+            Rate=0
+        UnitDetails.append({
+            "UnitID": d['id'],
+            "UnitName": d['BaseUnitConversion'] ,
+            "BaseUnitQuantity": d['BaseUnitQuantity'],
+            "PODefaultUnit": d['PODefaultUnit'],
+            "SODefaultUnit": d['SODefaultUnit'],
+            "Rate" : Rate
+
+        })
+    return UnitDetails
+
+
+
 
 class GetOpeningBalanceView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
@@ -132,7 +164,7 @@ class MRPMaster:
         else:
             MRPDetails=list()
             MRPDetails.append({
-                "TodaysMRP":"",
+                "TodaysMRP":0,
                 "Date": "",
                 "Mrpid":""
             })
@@ -177,7 +209,7 @@ class MRPMaster:
             MRP_Serializer = M_MRPsSerializer(EffectiveDateItemMRPdata, many=True).data
             EffectiveDateID =   MRP_Serializer[0]['id']
         else:
-            EffectiveDateID = ""
+            EffectiveDateID = 0
         return EffectiveDateID
     
     
@@ -225,8 +257,8 @@ class MarginMaster:
         else:
             MarginDetails=list()
             MarginDetails.append({
-                "TodaysMargin":"",
-                "Date": "",
+                "TodaysMargin":0,
+                "Date": 0,
             })
 
         return MarginDetails
@@ -245,7 +277,7 @@ class MarginMaster:
             Margin_Serializer = M_MarginsSerializer(ItemMargindata, many=True).data
             EffectiveDateMargin=   Margin_Serializer[0]['Margin']
         else:
-            EffectiveDateMargin = ""
+            EffectiveDateMargin = 0
                 
         return EffectiveDateMargin
 
@@ -374,7 +406,7 @@ class UnitwiseQuantityConversion:
             
             ConversionUnitBaseQuantitySerializer=ItemUnitsSerializer(ConversionUnitBaseQuantityQuery, many=True).data
             self.ConversionUnitBaseQuantity=ConversionUnitBaseQuantitySerializer[0]['BaseUnitQuantity']
-          
+      
     def GetBaseUnitQuantity(self):
         
         BaseUnitQuantity=float(self.InputQuantity) * float(self.BaseUnitQuantity)
@@ -382,6 +414,7 @@ class UnitwiseQuantityConversion:
         return BaseUnitQuantity   
 
     def ConvertintoSelectedUnit(self):
+        
         BaseUnitQuantity=float(self.InputQuantity) * float(self.BaseUnitQuantity)
         ConvertedQuantity=   float(BaseUnitQuantity) /  float(self.ConversionUnitBaseQuantity)
         return ConvertedQuantity
@@ -404,44 +437,53 @@ class RateCalculationFunction:
                 self.MRP = 0
             else:
                 self.MRP = q1[0]['MRP']
-            self.Gst = q2[0]['GSTPercentage']
-
+            
             q2=M_GSTHSNCode.objects.filter(id=QueryForGSTAndMRP[0]['GST']).values('GSTPercentage')
-            if(MCItemUnit == 0): 
-                a=Q(UnitID=MUnit)
-            else:
-                a=Q(id=MCItemUnit)   
-            
-            q3SelectedUnit=MC_ItemUnits.objects.filter(Item=ItemID,IsDeleted=0).filter( a ).values('BaseUnitQantity')
-            q3NoUnit=MC_ItemUnits.objects.filter(Item=ItemID,IsDeleted=0,UnitID=2).filter( a ).values('BaseUnitQantity')
-            
+            self.Gst = q2[0]['GSTPercentage']
         else:
             Gstfun = GSTHsnCodeMaster(ItemID, self.today).GetTodaysGstHsnCode()
             MRPfun = MRPMaster(ItemID,DivisionID,0,self.today).GetTodaysDateMRP()
+            # print('MRPfun',MRPfun[0]['TodaysMRP'])
+            # print('Gstfun',Gstfun[0]['GST'])
+            # print('unitfun',MCItemUnit)
             self.MRP=float(MRPfun[0]['TodaysMRP'])
             self.GST=float(Gstfun[0]['GST'])
         
-        query =M_Parties.objects.filter(id=PartyID).values('PriceList')
-       
-        query1=M_PriceList.objects.filter(id=query[0]['PriceList']).values('CalculationPath')
-
-        self.calculationPath=str(query1[0]['CalculationPath']).split(',')
         
+        if(MCItemUnit == 0): 
+                a=Q(UnitID=MUnit)
+        else:
+                a=Q(id=MCItemUnit)   
+            
+        q3SelectedUnit=MC_ItemUnits.objects.filter(Item=ItemID,IsDeleted=0).filter( a ).values('BaseUnitQuantity')
+       
+        q3NoUnit=MC_ItemUnits.objects.filter(Item=ItemID,IsDeleted=0,UnitID=1).values('BaseUnitQuantity')
+        
+        query =M_Parties.objects.filter(id=PartyID).values('PriceList')
+        # print(PartyID,query)
+        query1=M_PriceList.objects.filter(id=query[0]['PriceList']).values('CalculationPath')
+        # print(str(query1.query))
+        self.calculationPath=str(query1[0]['CalculationPath']).split(',')
+        self.BaseUnitQantityofselectedunit=q3SelectedUnit[0]['BaseUnitQuantity']
+        self.BaseUnitQantityofNoUnit= q3NoUnit[0]['BaseUnitQuantity']
     def RateWithGST(self):
       
         for i in self.calculationPath:
            
             Margin=MarginMaster(self.ItemID,i,self.PartyID,self.today).GetTodaysDateMargin()
-         
+            # print('Margin',Margin[0]['TodaysMargin'])
             Margin=float(Margin[0]['TodaysMargin'])
             GSTRate=self.MRP/(100+Margin)*100;
             RatewithoutGST=GSTRate*100/(100+self.GST)
             self.MRP=round(GSTRate,2)
         
+        RatewithGST=round((float(self.BaseUnitQantityofselectedunit/self.BaseUnitQantityofNoUnit)* float(GSTRate) ),2)
+        RateWithoutGST=round((float(self.BaseUnitQantityofselectedunit/self.BaseUnitQantityofNoUnit)* float(RatewithoutGST) ),2)
+        
         RateDetails=list()
         RateDetails.append({
-            "RatewithGST":round(GSTRate,0),
-            "RateWithoutGST": round(RatewithoutGST,0),
+            "RatewithGST":RatewithGST,
+            "RateWithoutGST": RateWithoutGST,
         })
         
         
@@ -451,7 +493,31 @@ class RateCalculationFunction:
 
 
  
+class GetPartyAddressDetails:
+    
+    def __init__(self,PartyID):
+        self.PartyID = PartyID
+            
         
+    def PartyAddress(self):     
+        
+        query = MC_PartyAddress.objects.filter(Party=self.PartyID,IsDefault=1).values('Address','FSSAINo','FSSAIExipry','PIN')
+        Address=query[0]['Address']
+        FSSAINo=query[0]['FSSAINo']
+        FSSAIExipry=query[0]['FSSAIExipry']
+        Pin=query[0]['PIN']
+
+        
+        Details=list()
+        Details.append({
+            "Address":Address,
+            "FSSAINo": FSSAINo,
+            "FSSAIExipry":FSSAIExipry,
+            "Pin":Pin
+        })
+        
+    
+        return Details        
         
         
         

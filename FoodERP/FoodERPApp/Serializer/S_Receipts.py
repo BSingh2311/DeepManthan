@@ -17,10 +17,6 @@ class ReceiptInvoiceserializer(serializers.Serializer):
     PaidAmount=serializers.DecimalField(max_digits=10, decimal_places=2)  
     BalAmt=serializers.DecimalField(max_digits=10, decimal_places=2)  
 
-
-
-    
-
 class PaymentReceiptSerializer(serializers.ModelSerializer):
     class Meta :
         model= TC_PaymentReceipt
@@ -38,6 +34,10 @@ class ReceiptSerializer(serializers.ModelSerializer):
         model= T_Receipts
         fields = ['ReceiptDate', 'ReceiptNo', 'Description', 'AmountPaid', 'ChequeDate','BalanceAmount', 'OpeningBalanceAdjusted', 'DocumentNo' , 'Bank', 'Customer', 'DepositorBank', 'Party', 'CreatedBy', 'UpdatedBy', 'FullReceiptNumber', 'ReceiptMode', 'ReceiptType','ReceiptInvoices','PaymentReceipt']
         
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(ReceiptSerializer, self).to_representation(instance)
+
     def create(self, validated_data):
         ReceiptInvoices_data = validated_data.pop('ReceiptInvoices')
         PaymentReceipts_data = validated_data.pop('PaymentReceipt')
