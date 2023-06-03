@@ -173,8 +173,53 @@ class SAPOrderView(CreateAPIView):
                 json_data = json.dumps(data_dict)
                 # Convert JSON string to Python dictionary
                 data_dict = json.loads(json_data)
-              
-                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': data_dict['entry']['content']['m:properties']['d:Stats'], 'Data':[]})
+                # print(data_dict)
+                a = str(data_dict)
+                index = a.find('entry')
+               
+                if index != -1:
+                    OrderID=int(data['OrderNo'])-5000000
+                    aa=T_Orders.objects.filter(id=OrderID).update(SAPResponse=data_dict['entry']['content']['m:properties']['d:Stats'])
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Order Save Successfully ', 'Data':[]})
+                else:
+                    index = a.find('error')
+                    if index != -1:
+                        return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': data_dict['error']['innererror']['errordetails']['errordetail'][0]['message'], 'Data':[]}) 
+                    else:
+                        return JsonResponse({'StatusCode': 400, 'Status': True, 'Message': 'Another exception raised from SAP', 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+        
+            
+class SAPLedgerView(CreateAPIView):
+    permission_classes = ()
+    
+    @transaction.atomic()
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                SapLedgerdata = JSONParser().parse(request)
+                FromDate = SapLedgerdata['FromDate']   
+                ToDate=  SapLedgerdata['ToDate']  
+                SAPCode=SapLedgerdata['SAPCode']
+
+                payload = ""
+                
+                url = f'http://web.chitalebandhu.in:8080/FoodERPWebAPIPOS/api/SAPDataSendToSCM/GetSAPCustomerLedgerList?FromDate={FromDate}&ToDate={ToDate}&SAPCode={SAPCode}'
+               
+                headers = {}
+                
+                response = requests.request("GET", url, headers=headers, data=payload)
+                response_json = json.loads(response.text)
+                # Convert XML to OrderedDict
+                # data_dict = xmltodict.parse(response.text)
+                # Convert OrderedDict to JSON string
+                # json_data = json.dumps(data_dict)
+                # # Convert JSON string to Python dictionary
+                # data_dict = json.loads(json_data)
+              
+                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':'', 'Data':response_json})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+                      
               

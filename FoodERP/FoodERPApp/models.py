@@ -113,6 +113,15 @@ class M_Districts(models.Model):
     class Meta:
         db_table = "M_Districts"
 
+class M_Cities(models.Model):
+    Name = models.CharField(max_length=100)
+    District = models.ForeignKey(M_Districts, related_name='CityDistrict', on_delete=models.PROTECT)
+    CreatedBy = models.IntegerField()
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField()
+    class Meta:
+        db_table="M_Cities"        
+        
     
 class M_Parties(models.Model):
 
@@ -129,7 +138,7 @@ class M_Parties(models.Model):
         M_Districts, related_name='PartiesDistrict', on_delete=models.DO_NOTHING)
     Taluka = models.IntegerField()
     City = models.IntegerField()
-    SAPPartyCode = models.CharField(max_length=500, null=True, blank=True)
+    SAPPartyCode = models.CharField(max_length=100, null=True, blank=True,unique=True)
     GSTIN = models.CharField(max_length=500,null=True, blank=True)
     PAN = models.CharField(max_length=500,null=True, blank=True)
     '''IsDivison this Flag depends on Partytypes if PartyTypes's IsDivision Flag is Set M_Parties IsDivision also set '''
@@ -194,6 +203,11 @@ class M_Employees(models.Model):
         M_States, related_name='EmployeesState', on_delete=models.DO_NOTHING)
     District = models.ForeignKey(
         M_Districts, related_name='EmployeesDistrict', on_delete=models.DO_NOTHING)
+    
+    City = models.ForeignKey(M_Cities, related_name='EmployeesCity', on_delete=models.DO_NOTHING)
+    
+    PIN = models.CharField(max_length=500,null=True,blank=True)
+  
     CreatedBy = models.IntegerField()
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField()
@@ -620,13 +634,18 @@ class M_Items(models.Model):
     BaseUnitID = models.ForeignKey(
         M_Units, related_name='BaseUnitID', on_delete=models.DO_NOTHING)
     BarCode = models.CharField(max_length=500,null=True,blank=True) 
-    SAPItemCode = models.CharField(max_length=255)
+    SAPItemCode = models.CharField(max_length=100,unique=True)
     isActive = models.BooleanField(default=False)
     IsSCM = models.BooleanField(default=False)
     CanBeSold = models.BooleanField(default=False)
     CanBePurchase = models.BooleanField(default=False)
     BrandName = models.CharField(max_length=500,null=True,blank=True)
     Tag = models.CharField(max_length=1000,null=True,blank=True)
+    Length = models.CharField(max_length=200,null=True,blank=True)
+    Breadth = models.CharField(max_length=200,null=True,blank=True)
+    Height = models.CharField(max_length=200,null=True,blank=True)
+    StoringCondition = models.IntegerField(default=False)
+    Grammage = models.CharField(max_length=200,null=True,blank=True)
     CreatedBy = models.IntegerField(default=False)
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField(default=False)
@@ -802,6 +821,7 @@ class T_Orders(models.Model):
     ShippingAddress=models.ForeignKey(MC_PartyAddress, related_name='OrderShippingAddress', on_delete=models.PROTECT)
     POFromDate = models.DateField(null=True,blank=True)
     POToDate = models.DateField(null=True,blank=True)
+    SAPResponse =models.CharField(max_length=500 ,null=True)
     CreatedBy = models.IntegerField()
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField()
@@ -1567,10 +1587,10 @@ class TC_ReceiptInvoices(models.Model):
      
 class M_ImportFields(models.Model):
     FieldName = models.CharField(max_length=500)
+    # Company = models.ForeignKey(C_Companies,related_name='ImportFieldCompany', on_delete=models.PROTECT)
     ControlType = models.ForeignKey(M_ControlTypeMaster, related_name='ImportFieldControlType', on_delete=models.DO_NOTHING)
     FieldValidation = models.ForeignKey(M_FieldValidations, related_name='ImportFieldValidation', on_delete=models.DO_NOTHING)
     IsCompulsory = models.BooleanField(default=False)
-    Company = models.ForeignKey(C_Companies,related_name='ImportFieldCompany', on_delete=models.PROTECT)
     CreatedBy = models.IntegerField()
     CreatedOn = models.DateTimeField(auto_now_add=True)
     UpdatedBy = models.IntegerField()
@@ -1675,3 +1695,8 @@ class MC_SettingDependency(models.Model):
     DependentSetting=models.ForeignKey(M_Settings,related_name='DependentSettingID',on_delete=models.PROTECT) 
     class Meta:
         db_table="MC_SettingDependency"
+        
+        
+
+
+       

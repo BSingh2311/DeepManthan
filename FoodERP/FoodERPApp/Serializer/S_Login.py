@@ -6,6 +6,7 @@ from  ..models import C_CompanyGroups, M_Employees, M_Parties, M_Roles, M_Users,
 from rest_framework import serializers
 from ..models import M_Users
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.http import JsonResponse
 
 # JWT_PAYLOAD_HANDLER = api_settings.JWT_PAYLOAD_HANDLER
 # JWT_ENCODE_HANDLER = api_settings.JWT_ENCODE_HANDLER
@@ -96,15 +97,11 @@ class UserLoginSerializer(serializers.Serializer):
     def validate(self, data):
         LoginName = data.get("LoginName", None)
         password = data.get("password", None)
-       
         user = authenticate(LoginName=LoginName, password=password)
-       
-        
       
         if user is None:
-            raise serializers.ValidationError(
-                'A user with this LoginName and password is not found.'
-            )
+            
+            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'A user with this LoginName and password is not found', 'Data':[]})
         try:
             
             refresh = RefreshToken.for_user(user)
@@ -116,9 +113,8 @@ class UserLoginSerializer(serializers.Serializer):
 
             update_last_login(None, user)
         except M_Users.DoesNotExist:
-            raise serializers.ValidationError(
-                'User with given LoginName and password does not exists'
-            )
+            
+            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'User with given LoginName and password does not exists', 'Data':[]})
         return {
             'LoginName': user.LoginName,
             'EmployeeID':user.Employee_id,
@@ -177,41 +173,6 @@ class UserListSerializer(serializers.ModelSerializer):
         # fields = ['ID','password','LoginName','last_login','email','AdminPassword','isActive','isSendOTP','EmployeeID','CreatedBy','RoleID']
         
         
-        
- 
-class ChangePasswordSerializer(serializers.Serializer):
-    
-    LoginName = serializers.CharField(max_length=255)
-    password = serializers.CharField(max_length=128, write_only=True)
-    newpassword = serializers.CharField(max_length=128, write_only=True)
-    
-    def validate(self, data):
-        LoginName = data.get("LoginName", None)
-        password = data.get("password", None)
-        newpassword = data.get("newpassword", None)
-        user = authenticate(LoginName=LoginName, password=password)
-
-        if user is None:
-            raise serializers.ValidationError(
-                'A user with this LoginName and password is not found.'
-            )
-        try:
-            
-           
-            user.set_password(newpassword)
-            user.AdminPassword = newpassword
-            user.save()
-           
-            
-        except M_Users.DoesNotExist:
-            raise serializers.ValidationError(
-                'User with given LoginName and password does not exists'
-            )
-        return {
-            'LoginName': user.LoginName
-            
-        }
-
 
 class C_CompanyGroupSerializer(serializers.ModelSerializer):
      class Meta:
@@ -227,7 +188,7 @@ class M_UserPartiesSerializer(serializers.Serializer):
     Party_id=serializers.IntegerField()
     PartyName=serializers.CharField(max_length=500)
     Employee_id=serializers.IntegerField()
-    
+    SAPPartyCode=serializers.CharField(max_length=500)
     
     
 class EmployeeSerializerForUserCreation(serializers.Serializer): 

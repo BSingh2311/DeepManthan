@@ -3,6 +3,7 @@ from ..Serializer.S_Companies import C_CompanySerializer
 from ..Serializer.S_Employees import *
 from ..models import *
 from ..Serializer.S_Login import *
+from django.db import IntegrityError, transaction
 # from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework import status
 from rest_framework.response import Response
@@ -234,42 +235,47 @@ class UserLoginView(RetrieveAPIView):
 
         serializer = UserLoginSerializer(data=a)
         
-        serializer.is_valid(raise_exception=True)
+        if serializer.is_valid():
         
-        response = {
-            'Status': True,
-            'StatusCode': status.HTTP_200_OK,
-            'Message': 'User logged in  successfully',
-            'token': serializer.data['token'],
-            'refreshtoken': serializer.data['refreshtoken'],
-            'UserID': serializer.data['UserID']
-
-
-        }
-        status_code = status.HTTP_200_OK
-
-        return Response(response, status=status_code)
+            response = {
+                'Status': True,
+                'StatusCode': status.HTTP_200_OK,
+                'Message': 'User logged in  successfully',
+                'token': serializer.data['token'],
+                'refreshtoken': serializer.data['refreshtoken'],
+                'UserID': serializer.data['UserID']
+            }
+            status_code = status.HTTP_200_OK
+            return Response(response, status=status_code)
+        else:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message': 'Incorrect LoginName and Password ', 'Data': []})
 
 
 class ChangePasswordView(RetrieveAPIView):
 
     permission_classes = (IsAuthenticated,)
-    # authentication_class = JSONWebTokenAuthentication
-
-    serializer_class = ChangePasswordSerializer
-
+  
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        response = {
-            'Status': True,
-            'StatusCode': status.HTTP_200_OK,
-            'Message': 'Password change successfully',
-            # 'token': serializer.data,
-        }
-        status_code = status.HTTP_200_OK
+        try:
+            with transaction.atomic():
+                Logindata = JSONParser().parse(request)
+                LoginName = Logindata['LoginName']   
+                password=  Logindata['password']  
+                newpassword=Logindata['newpassword']
+                
+                user = authenticate(LoginName=LoginName, password=password)
+                if user is None:
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'A user with this LoginName and password is not found', 'Data':[]}) 
+                else:
+                    user.set_password(newpassword)
+                    user.AdminPassword = newpassword
+                    user.save()
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Password change successfully', 'Data':[]}) 
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
+        
 
-        return Response(response, status=status_code)
+        
 
 
 # class RegenrateToken(APIView):
@@ -299,7 +305,7 @@ class UserPartiesViewSecond(CreateAPIView):
         try:
             with transaction.atomic():
                 query = MC_EmployeeParties.objects.raw(
-                    '''SELECT  a.id,b.Role_id Role,M_Roles.Name AS RoleName,a.Party_id,M_Parties.Name AS PartyName ,a.Employee_id from (SELECT MC_EmployeeParties.id,MC_EmployeeParties.Party_id,'0' RoleID,Employee_id FROM MC_EmployeeParties where Employee_id=%s)a left join (select MC_UserRoles.Party_id,MC_UserRoles.Role_id,Employee_id FROM MC_UserRoles join M_Users on M_Users.id=MC_UserRoles.User_id WHERE M_Users.Employee_id=%s)b on a.Party_id=b.Party_id left join M_Parties on M_Parties.id=a.Party_id Left join M_Roles on M_Roles.id=b.Role_id''', ([id], [id]))
+                    '''SELECT  a.id,b.Role_id Role,M_Roles.Name AS RoleName,a.Party_id,M_Parties.Name AS PartyName ,a.Employee_id,M_Parties.SAPPartyCode from (SELECT MC_EmployeeParties.id,MC_EmployeeParties.Party_id,'0' RoleID,Employee_id FROM MC_EmployeeParties where Employee_id=%s)a left join (select MC_UserRoles.Party_id,MC_UserRoles.Role_id,Employee_id FROM MC_UserRoles join M_Users on M_Users.id=MC_UserRoles.User_id WHERE M_Users.Employee_id=%s)b on a.Party_id=b.Party_id left join M_Parties on M_Parties.id=a.Party_id Left join M_Roles on M_Roles.id=b.Role_id''', ([id], [id]))
                 # print(str(query.query))
                 if not query:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Parties Not available', 'Data': []})
@@ -322,7 +328,7 @@ class UserPartiesForLoginPage(CreateAPIView):
         try:
             with transaction.atomic():
                 query = MC_EmployeeParties.objects.raw(
-                    '''SELECT  MC_UserRoles.id,MC_UserRoles.Party_id,MC_UserRoles.Role_id Role,M_Roles.Name AS RoleName,M_Parties.Name AS PartyName ,M_Users.Employee_id,M_PartyType.IsSCM
+                    '''SELECT  MC_UserRoles.id,MC_UserRoles.Party_id,MC_UserRoles.Role_id Role,M_Roles.Name AS RoleName,M_Parties.Name AS PartyName ,M_Users.Employee_id,M_Parties.SAPPartyCode,M_PartyType.IsSCM
 
                      FROM  MC_UserRoles
                      JOIN M_Users on M_Users.id=MC_UserRoles.User_id
