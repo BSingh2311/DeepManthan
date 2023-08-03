@@ -42,15 +42,23 @@ class GRNListFilterView(CreateAPIView):
                 else:
                     GRN_serializer = T_GRNSerializerForGET(
                         query, many=True).data
+                    # return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': GRN_serializer})
                     GRNListData = list()
                     for a in GRN_serializer:
-                       
-                        challan = a['GRNReferences'][0]['Challan']
-                        if challan != None: 
+                        x = a.get('GRNReferences')
+                        challan = None 
+                        if x:
+                            challan = x[0]['Challan']
                             POType= ""
                         else:
-                              POType= ""
-                            # POType= a['GRNReferences'][0]['Order']['POType']['id']
+                            POType= ""
+                       
+                        # challan = a['GRNReferences'][0]['Challan']
+                        # if challan != None: 
+                        #     POType= ""
+                        # else:
+                        #     POType= ""
+                        #     # POType= a['GRNReferences'][0]['Order']['POType']['id']
                         GRNListData.append({
                             "id": a['id'],
                             "GRNDate": a['GRNDate'],
@@ -117,12 +125,22 @@ class T_GRNView(CreateAPIView):
                         b = 0
 
                     BatchCode = SystemBatchCodeGeneration.GetGrnBatchCode(a['Item'], GRNdata['Customer'], b)
-                    UnitwiseQuantityConversionobject=UnitwiseQuantityConversion(a['Item'],a['Quantity'],a['Unit'],0,0,0,0)
-                    BaseUnitQuantity=UnitwiseQuantityConversionobject.GetBaseUnitQuantity()
+                    
+                    
+                    BaseUnitQuantity=UnitwiseQuantityConversion(a['Item'],a['Quantity'],a['Unit'],0,0,0,0).GetBaseUnitQuantity()
+                    a['BaseUnitQuantity'] =  round(BaseUnitQuantity,3) 
+                    QtyInNo=UnitwiseQuantityConversion(a['Item'],a['Quantity'],a['Unit'],0,0,1,0).ConvertintoSelectedUnit()
+                    a['QtyInNo'] =  float(QtyInNo)
+                    QtyInKg=UnitwiseQuantityConversion(a['Item'],a['Quantity'],a['Unit'],0,0,2,0).ConvertintoSelectedUnit()
+                    a['QtyInKg'] =  float(QtyInKg)
+                    QtyInBox=UnitwiseQuantityConversion(a['Item'],a['Quantity'],a['Unit'],0,0,4,0).ConvertintoSelectedUnit()
+                    a['QtyInBox'] = float(QtyInBox)
+                    
+                    
                     
                     a['SystemBatchCode'] = BatchCode
                     a['SystemBatchDate'] = date.today()
-                    a['BaseUnitQuantity'] = BaseUnitQuantity
+                    
                     
                     O_BatchWiseLiveStockList.append({
                     "Item": a['Item'],
@@ -141,6 +159,8 @@ class T_GRNView(CreateAPIView):
                     "MRP": a['MRP'],
                     "Rate": a['Rate'],
                     "GST": a['GST'],
+                    "GSTPercentage":a["GSTPercentage"],
+                    "MRPValue":a["MRPValue"],
                     "SystemBatchDate": a['SystemBatchDate'],
                     "SystemBatchCode": a['SystemBatchCode'],
                     "BatchDate": a['BatchDate'],
@@ -283,7 +303,7 @@ class GetOrderDetailsForGrnView(CreateAPIView):
                         OrderSerializedata = OrderSerializerForGrn(OrderQuery,many=True).data
                         OrderItemQuery=TC_OrderItems.objects.filter(Order__in=Order_list,IsDeleted=0).order_by('Item')
                         OrderItemSerializedata=TC_OrderItemSerializer(OrderItemQuery,many=True).data
-                        # return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': OrderItemSerializedata})
+                        # return JsonResponse/({'StatusCode': 200, 'Status': True, 'Data': OrderItemSerializedata})
                         for b in OrderItemSerializedata:
                                 Item= b['Item']['id']
                                 query = MC_ItemUnits.objects.filter(Item_id=Item,IsDeleted=0)
@@ -297,6 +317,7 @@ class GetOrderDetailsForGrnView(CreateAPIView):
                                             "Unit": c['id'],
                                             "UnitName": c['BaseUnitConversion'],
                                         })
+                                            
                                     # return JsonResponse({'StatusCode': 200, 'Status': True, 'Data':Unitdata})
                                 OrderItemDetails.append({
                                     "id": b['id'],
@@ -451,19 +472,41 @@ class GetOrderDetailsForGrnView(CreateAPIView):
                                             "Unit": c['id'],
                                             "UnitName": c['BaseUnitConversion'],
                                         })
+                                MRPquery = M_MRPMaster.objects.filter(Item_id=b['Item']['id']).order_by('-id')[:3] 
+                                if MRPquery.exists():
+                                    MRPdata = ItemMRPSerializerSecond(MRPquery, many=True).data
+                                    ItemMRPDetails = list()
+                                    
+                                    for d in MRPdata:
+                                        ItemMRPDetails.append({
+                                        "MRP": d['id'],
+                                        "MRPValue": d['MRP'],   
+                                    })
+                                GSTquery = M_GSTHSNCode.objects.filter(Item_id=b['Item']['id']).order_by('-id')[:3] 
+                                if GSTquery.exists():
+                                    Gstdata = ItemGSTHSNSerializerSecond(GSTquery, many=True).data
+                                    ItemGSTDetails = list()
+                                    for e in Gstdata:
+                                        ItemGSTDetails.append({
+                                        "GST": e['id'],
+                                        "GSTPercentage": e['GSTPercentage'],   
+                                    }) 
                                 InvoiceItemDetails.append({
                                     "Item": b['Item']['id'],
                                     "ItemName": b['Item']['Name'],
                                     "Quantity": b['Quantity'],
-                                    "MRP": b['MRP']['id'],
-                                    "MRPValue": b['MRP']['MRP'],
+                                    "QtyInBox": round(float(b['QtyInBox']),2),
+                                    
+                                    "MRPDetails": ItemMRPDetails,
+                                    # "MRPValue": b['MRPValue'],
                                     "Rate": b['Rate'],
                                     "TaxType": b['TaxType'],
                                     "Unit": b['Unit']['id'],
                                     "UnitName": b['Unit']['BaseUnitConversion'],
                                     "BaseUnitQuantity": b['BaseUnitQuantity'],
+                                    "GSTDropdown":ItemGSTDetails,
                                     "GST": b['GST']['id'],
-                                    "GSTPercentage": b['GST']['GSTPercentage'],
+                                    "GSTPercentage": b['GSTPercentage'],
                                     "MarginValue": b['Margin']['Margin'],
                                     "BasicAmount": b['BasicAmount'],
                                     "GSTAmount": b['GSTAmount'],

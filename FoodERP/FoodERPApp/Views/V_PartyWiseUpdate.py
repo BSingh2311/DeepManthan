@@ -37,12 +37,11 @@ class PartyWiseUpdateView(CreateAPIView):
                 # query = MC_PartySubParty.objects.filter(Party=Party).filter(a).filter(b)
                 
                 q0 = MC_PartySubParty.objects.filter(Party = Party).values("SubParty")
-                q1 = M_Parties.objects.filter(id__in = q0,PartyType__IsRetailer=1).select_related("PartyType") 
+                # q1 = M_Parties.objects.filter(id__in = q0,PartyType__IsRetailer=1).select_related("PartyType")
+                q1 = M_Parties.objects.filter(id__in = q0).select_related("PartyType")
+
                 query = MC_PartySubParty.objects.filter(SubParty__in=q1).filter(a).filter(b)
-                
-                
-                
-                
+
                 if query.exists:
                     PartyID_serializer = PartyWiseSerializer(query, many=True).data
                     # return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': PartyID_serializer})
@@ -88,7 +87,7 @@ class PartyWiseUpdateView(CreateAPIView):
                                 "FSSAIExipry":  FSSAI_Serializer[0]['FSSAIExipry']
                                 })
                             
-                        elif (Type == 'Creditlimit'):
+                        elif (Type == 'Creditlimit' or Type == 'IsTCSParty' ):
                             SubPartyListData.append({
                                 "id": a['id'],
                                 "PartyID":a['Party']['id'],
@@ -125,21 +124,16 @@ class PartyWiseUpdateViewSecond(CreateAPIView):
                 UpdatedData = Partydata['UpdateData']
 
                 for a in UpdatedData:
-                    if (Type == 'Creditlimit'):     
+                    if (Type == 'Creditlimit' or Type == 'IsTCSParty' ):     
                         Party = Partydata['PartyID']             
                         query = MC_PartySubParty.objects.filter(Party=Party, SubParty=a['SubPartyID']).update(**{Type: a['Value1']})
                     elif (Type == 'FSSAINo'):
                         query = MC_PartyAddress.objects.filter(Party=a['SubPartyID'], IsDefault=1).update(FSSAINo=a['Value1'], FSSAIExipry=a['Value2'])
                     elif (Type == 'State'):
-
                         query = M_Parties.objects.filter(id=a['SubPartyID']).update(State=a['Value1'], District=a['Value2'])
-
-                        # print(str(query.query))
                     else:    
-                        query = M_Parties.objects.filter(id=a['SubPartyID']).update(**{Type: a['Value1']})
-                   
-                return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Update Successfully', 'Data': []})
-                
+                        query = M_Parties.objects.filter(id=a['SubPartyID']).update(**{Type: a['Value1']})  
+                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Update Successfully', 'Data': []})  
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})     
 

@@ -10,7 +10,7 @@ class InvoiceItemsSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TC_InvoiceItems
-        fields = ['BatchCode', 'Quantity', 'BaseUnitQuantity', 'MRP', 'Rate', 'BasicAmount', 'TaxType', 'GST', 'GSTAmount', 'Amount', 'DiscountType', 'Discount', 'DiscountAmount', 'CGST', 'SGST', 'IGST', 'CGSTPercentage', 'SGSTPercentage', 'IGSTPercentage', 'CreatedOn', 'Item', 'Unit', 'BatchDate','LiveBatch','MRPValue','GSTPercentage']   
+        fields = ['BatchCode', 'Quantity', 'BaseUnitQuantity', 'MRP', 'Rate', 'BasicAmount', 'TaxType', 'GST', 'GSTAmount', 'Amount', 'DiscountType', 'Discount', 'DiscountAmount', 'CGST', 'SGST', 'IGST', 'CGSTPercentage', 'SGSTPercentage', 'IGSTPercentage', 'CreatedOn', 'Item', 'Unit', 'BatchDate','LiveBatch','MRPValue','GSTPercentage','QtyInNo','QtyInKg','QtyInBox']   
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -19,7 +19,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     # obatchwiseStock=obatchwiseStockSerializer(many=True)
     class Meta:
         model = T_Invoices
-        fields = ['InvoiceDate', 'InvoiceNumber', 'FullInvoiceNumber', 'GrandTotal', 'RoundOffAmount', 'CreatedBy', 'UpdatedBy', 'Customer', 'Party', 'InvoiceItems']
+        fields = ['InvoiceDate', 'InvoiceNumber', 'FullInvoiceNumber', 'GrandTotal', 'RoundOffAmount', 'CreatedBy', 'UpdatedBy', 'Customer', 'Party','TCSAmount', 'InvoiceItems']
 
     def create(self, validated_data):
         print('dddddddddddddddddddddddd',validated_data)

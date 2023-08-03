@@ -120,6 +120,7 @@ class GetVendorSupplierCustomerListView(CreateAPIView):
                 Type=Partydata['Type']
                 id=Partydata['PartyID']
                 Company=Partydata['Company']
+                Route = Partydata['Route']
                 
                 if(Type==1): #Vendor
                     q0=M_PartyType.objects.filter(Company=Company,IsVendor=1)
@@ -133,39 +134,92 @@ class GetVendorSupplierCustomerListView(CreateAPIView):
                     
                 elif(Type==3):  #Customer
                     q0=M_PartyType.objects.filter(Company=Company,IsVendor=0)
-                    Query = MC_PartySubParty.objects.filter(Party=id,SubParty__PartyType__in=q0).select_related('Party')
+                    if (Route==""):
+                        Query = MC_PartySubParty.objects.filter(Party=id,SubParty__PartyType__in=q0).select_related('Party')
+                    else:
+                        Query = MC_PartySubParty.objects.filter(Party=id,SubParty__PartyType__in=q0,Route=Route).select_related('Party')
                 
+                elif(Type==5):  #Customer without retailer
+                    q0=M_PartyType.objects.filter(Company=Company,IsVendor=0,IsRetailer=0)
+                    if (Route==""):
+                        Query = MC_PartySubParty.objects.filter(Party=id,SubParty__PartyType__in=q0).select_related('Party')
+                    else:
+                        Query = MC_PartySubParty.objects.filter(Party=id,SubParty__PartyType__in=q0,Route=Route).select_related('Party')
+                        
+                    
+
                 elif (Type==4):
                     Query = M_Parties.objects.filter(Company=Company,IsDivision=1).filter(~Q(id=id))
                 
                 if Query:
                     
                     if(Type==4):
-                        Supplier_serializer = DivisionsSerializer(Query, many=True).data
+                        Supplier_serializer = PartySerializer(Query, many=True).data
                     else:    
                         Supplier_serializer = PartySubpartySerializerSecond(Query, many=True).data
-                    
+                    # return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':'','Data': Supplier_serializer})
                     ListData = list()
+                    FSSAINo= " "
+                    FSSAIExipry = ""
                     for a in Supplier_serializer: 
                         if(Type==1): #Vendor
+                            
+                            if(a['Party']['PartyAddress'][0]['IsDefault'] == 1):
+                                FSSAINo=a['Party']['PartyAddress'][0]['FSSAINo']
+                                FSSAIExipry=a['Party']['PartyAddress'][0]['FSSAIExipry']
+                              
                             ListData.append({
                             "id": a['Party']['id'],
-                            "Name": a['Party']['Name']
+                            "Name": a['Party']['Name'],
+                            "GSTIN": a['Party']['GSTIN'],
+                            "PAN":a['SubParty']['PAN'],
+                            "FSSAINo" : FSSAINo,
+                            "FSSAIExipry" : FSSAIExipry,
+                            "IsTCSParty":a['IsTCSParty']
                             })   
                         elif(Type==2): #Supplier
+                            if(a['Party']['PartyAddress'][0]['IsDefault'] == 1):
+                                FSSAINo=a['Party']['PartyAddress'][0]['FSSAINo']
+                                FSSAIExipry=a['Party']['PartyAddress'][0]['FSSAIExipry']
+                                 
                             ListData.append({
                             "id": a['Party']['id'],
-                            "Name": a['Party']['Name']
+                            "Name": a['Party']['Name'],
+                            "GSTIN": a['Party']['GSTIN'],
+                            "PAN":a['SubParty']['PAN'],
+                            "FSSAINo" : FSSAINo,
+                            "FSSAIExipry" : FSSAIExipry,
+                            "IsTCSParty":a['IsTCSParty']
+
                             }) 
-                        elif(Type==3):  #Customer
+                        elif(Type==3 or Type == 5 ):  #Customer
+                            if(a['SubParty']['PartyAddress'][0]['IsDefault'] == 1):
+                                FSSAINo=a['SubParty']['PartyAddress'][0]['FSSAINo']
+                                FSSAIExipry=a['SubParty']['PartyAddress'][0]['FSSAIExipry']
+                            
                             ListData.append({
                             "id": a['SubParty']['id'],
-                            "Name": a['SubParty']['Name']
+                            "Name": a['SubParty']['Name'],
+                            "GSTIN": a['SubParty']['GSTIN'],
+                            "PAN":a['SubParty']['PAN'],
+                            "FSSAINo" : FSSAINo,
+                            "FSSAIExipry" : FSSAIExipry,
+                            "IsTCSParty":a['IsTCSParty']
                             })
                         else:
+                            if(a['Party']['PartyAddress'][0]['IsDefault'] == 1):
+                                FSSAINo=a['Party']['PartyAddress'][0]['FSSAINo']
+                                FSSAIExipry=a['Party']['PartyAddress'][0]['FSSAIExipry']
+                                
+
                             ListData.append({
                             "id": a['id'],
-                            "Name": a['Name']
+                            "Name": a['Name'],
+                            "GSTIN": a['Party']['GSTIN'],
+                            "PAN":a['SubParty']['PAN'],
+                            "FSSAINo" : FSSAINo,
+                            "FSSAIExipry" : FSSAIExipry,
+                            "IsTCSParty":a['IsTCSParty']
                             })
 
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':'','Data': ListData})

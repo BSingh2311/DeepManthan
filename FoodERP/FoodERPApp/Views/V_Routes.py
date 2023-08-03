@@ -7,7 +7,7 @@ from rest_framework.parsers import JSONParser
 from ..Serializer.S_Routes import *
 from ..Serializer.S_PartySubParty import *
 from ..models import *
-
+from ..Serializer.S_Orders import *
 
 class RouteListView(CreateAPIView):
     
@@ -24,10 +24,9 @@ class RouteListView(CreateAPIView):
                 Routequery = M_Routes.objects.filter(Party=Party,Company=Company)
                 if Routequery.exists():
                     Routesdata = RoutesSerializer(Routequery, many=True).data
+                    
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': Routesdata})
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Routes Not available ', 'Data': []})
-        except M_Routes.DoesNotExist:
-            return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Routes Not available', 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
      
@@ -44,7 +43,9 @@ class RoutesView(CreateAPIView):
                 Routes_Serializer = RoutesSerializer(data=Routes_data)
                 if Routes_Serializer.is_valid():
                     Routes_Serializer.save()
+                    log_entry = create_transaction_log(request,Routes_data,0,0,'Route Save Successfully')
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Route Save Successfully', 'Data':[]})
+                    
                 else:
                     transaction.set_rollback(True)
                     return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':  Routes_Serializer.errors, 'Data':[]})
@@ -75,6 +76,7 @@ class RoutesView(CreateAPIView):
                 Routesdata_Serializer = RoutesSerializer(RoutesdataByID, data=Routesdata)
                 if Routesdata_Serializer.is_valid():
                     Routesdata_Serializer.save()
+                    log_entry = create_transaction_log(request,Routesdata,0,0,'Route Updated Successfully')
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Routes Updated Successfully', 'Data':[]})
                 else:
                     transaction.set_rollback(True)
@@ -89,11 +91,13 @@ class RoutesView(CreateAPIView):
             with transaction.atomic():
                 Routesdata = M_Routes.objects.get(id=id)
                 Routesdata.delete()
+                
+                log_entry = create_transaction_log(request,Routesdata,0,0,'Route Deleted Successfully')
                 return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Routes Deleted Successfully', 'Data':[]})
         except M_Routes.DoesNotExist:
             return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':'Routes Not available', 'Data': []})
         except IntegrityError:   
-            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':'Routes used in another table', 'Data': []})
+            return JsonResponse({'StatusCode': 226, 'Status': True, 'Message':'Routes used in another table', 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
         
@@ -112,10 +116,8 @@ class RoutesUpdateListView(CreateAPIView):
                       
                 
                 q0 = MC_PartySubParty.objects.filter(Party = Party).values("SubParty")
-              
-                q1 = M_Parties.objects.filter(id__in = q0,PartyType__IsRetailer=1).select_related("PartyType") 
-               
-                query = MC_PartySubParty.objects.filter(SubParty__in=q1) 
+                    
+                query = MC_PartySubParty.objects.filter(SubParty__in=q0) 
                 
                 if query.exists():
                     SubPartydata = RoutesUpdateListSerializer(query, many=True).data
@@ -125,6 +127,7 @@ class RoutesUpdateListView(CreateAPIView):
                         SubPartyListData.append({
                             "id": a['id'],
                             "Party": a['Party']['id'],
+                            "PartyName": a['Party']['Name'],
                             "SubParty": a['SubParty']['id'],
                             "SubPartyName": a['SubParty']['Name'],
                             "Route":a['Route']['id'],
@@ -132,8 +135,6 @@ class RoutesUpdateListView(CreateAPIView):
                         })
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': SubPartyListData})
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Creditlimit  Not available ', 'Data': []})
-        except MC_PartySubParty.DoesNotExist:
-            return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Creditlimit Not available', 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
           
@@ -151,7 +152,7 @@ class RoutesUpdateView(CreateAPIView):
                     if(a['Route']!= ""):
                         query = MC_PartySubParty.objects.filter(id=a['id'],Party=a['Party'],SubParty=a['SubParty']).update(Route=a['Route']) 
                     else:
-                        return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Route Not Updated', 'Data': []})     
+                        return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Route Not Updated', 'Data': []})     
                 return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Route Updated Successfully', 'Data': []})  
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})             

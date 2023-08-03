@@ -6,6 +6,8 @@ from django.db import IntegrityError, transaction
 from rest_framework.parsers import JSONParser
 from ..Serializer.S_Group import *
 from ..models import *
+from ..Serializer.S_Orders import *
+
 
 class GroupView(CreateAPIView):
 
@@ -31,7 +33,8 @@ class GroupView(CreateAPIView):
                             "CreatedBy": a['CreatedBy'],
                             "CreatedOn": a['CreatedOn'],
                             "UpdatedBy": a['UpdatedBy'],
-                            "UpdatedOn": a['UpdatedOn']
+                            "UpdatedOn": a['UpdatedOn'],
+                            "Sequence":a['Sequence']
                         })
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': GroupList})
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Group Not available ', 'Data': []})
@@ -46,6 +49,7 @@ class GroupView(CreateAPIView):
                 Group_Serializer = GroupSerializer(data=Group_data)
                 if Group_Serializer.is_valid():
                     Group_Serializer.save()
+                    log_entry = create_transaction_log(request, Group_data, 0, 0, "Group Save Successfully")
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Group Save Successfully', 'Data': []})
                 else:
                     transaction.set_rollback(True)
@@ -76,7 +80,8 @@ class GroupViewSecond(CreateAPIView):
                             "CreatedBy": a['CreatedBy'],
                             "CreatedOn": a['CreatedOn'],
                             "UpdatedBy": a['UpdatedBy'],
-                            "UpdatedOn": a['UpdatedOn']
+                            "UpdatedOn": a['UpdatedOn'],
+                            "Sequence":a['Sequence']
                         })
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': GroupList[0]})
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Group Not available ', 'Data': []})
@@ -94,6 +99,7 @@ class GroupViewSecond(CreateAPIView):
                     Group_dataByID, data=Group_data)
                 if Group_Serializer.is_valid():
                     Group_Serializer.save()
+                    log_entry = create_transaction_log(request, Group_data, 0, 0, "Group Updated Successfully")
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Group Updated Successfully', 'Data':[]})
                 else:
                     transaction.set_rollback(True)
@@ -108,6 +114,7 @@ class GroupViewSecond(CreateAPIView):
             with transaction.atomic():
                 Group_data = M_Group.objects.get(id=id)
                 Group_data.delete()
+                log_entry = create_transaction_log(request, Group_data, 0, 0, "Group Deleted Successfully")
                 return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Group Deleted Successfully', 'Data':[]})
         except M_Group.DoesNotExist:
             return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':'Group Not available', 'Data': []})
@@ -137,7 +144,8 @@ class GetGroupByGroupTypeID(CreateAPIView):
                             "CreatedBy": a['CreatedBy'],
                             "CreatedOn": a['CreatedOn'],
                             "UpdatedBy": a['UpdatedBy'],
-                            "UpdatedOn": a['UpdatedOn']
+                            "UpdatedOn": a['UpdatedOn'],
+                            "Sequence":a['Sequence']
                         })
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': GroupList})
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Group Not available ', 'Data': []})

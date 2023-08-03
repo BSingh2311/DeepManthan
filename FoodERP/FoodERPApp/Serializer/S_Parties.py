@@ -1,29 +1,53 @@
 from ..models import *
 from rest_framework import serializers
-
+from ..Serializer.S_Routes import  *
 
 class PartiesSerializer(serializers.ModelSerializer):
        
     class Meta:
         model = M_Parties
-        fields = ['id','Name','GSTIN','PAN','Email']       
-        
+        fields = ['id','Name','GSTIN','PAN','Email','MobileNo']       
+
+class Partyaddress(serializers.ModelSerializer):
+    class Meta:
+        model = MC_PartyAddress
+        fields = ['FSSAINo','FSSAIExipry','IsDefault']        
+
+class PartyTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= M_PartyType
+        fields = '__all__'
+
 class DivisionsSerializer(serializers.ModelSerializer):
+    PartyType=PartyTypeSerializer(read_only=True)
+    PartyAddress=Partyaddress(many=True)
     class Meta:
         model =  M_Parties
-        fields = ['id','Name']
+        fields = ['id','Name','PartyType','GSTIN','PartyAddress']
+        
+        
+        
          
 class PartySubPartySerializer2(serializers.ModelSerializer):
     Party = DivisionsSerializer()
+    Route = RoutesSerializer()
     class Meta:
         model = MC_PartySubParty
-        fields = ['Party','SubParty','Creditlimit','Route_id']
-              
+        fields = ['Party','SubParty','Creditlimit','Route','Distance']
+        
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(PartySubPartySerializer2, self).to_representation(instance)
+        # if parent is None, overwrite
+        if not ret.get("Route", None):
+            ret["Route"] = {"id": None, "Name": None}
+           
+        return ret          
     
 class PartyPrefixsSerializer(serializers.ModelSerializer):
     class Meta:
         model = MC_PartyPrefixs
-        fields = ['Orderprefix', 'Invoiceprefix', 'Grnprefix', 'Receiptprefix','Challanprefix','WorkOrderprefix','MaterialIssueprefix','Demandprefix','IBChallanprefix','IBInwardprefix']
+        fields = ['Orderprefix', 'Invoiceprefix', 'Grnprefix', 'Receiptprefix','Challanprefix','WorkOrderprefix','MaterialIssueprefix','Demandprefix','IBChallanprefix','IBInwardprefix','PurchaseReturnprefix']
         
 class PartyAddressSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,7 +57,7 @@ class PartyAddressSerializer(serializers.ModelSerializer):
 class MC_PartySubPartySerializer(serializers.ModelSerializer):
     class Meta:
         model =MC_PartySubParty
-        fields =['Party','CreatedBy','UpdatedBy']
+        fields =['Party','Route','CreatedBy','UpdatedBy']
 
 class M_PartiesinstanceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -47,7 +71,6 @@ class M_PartiesSerializer(serializers.ModelSerializer):
     class Meta:
         model =  M_Parties
         fields = '__all__'
-        
         
     def create(self, validated_data):
         PartyType = validated_data.get('PartyType')
@@ -96,8 +119,8 @@ class M_PartiesSerializer1(serializers.Serializer):
     StateName = serializers.CharField(max_length=500)
     District_id = serializers.IntegerField()
     DistrictName = serializers.CharField(max_length=500)
-    Taluka = serializers.IntegerField ()
-    City = serializers.IntegerField()
+    CityName = serializers.CharField(max_length=500)
+    City_id = serializers.IntegerField()
     SAPPartyCode = serializers.CharField(max_length = 500)
     GSTIN =  serializers.CharField(max_length=500)
     PAN =  serializers.CharField(max_length=500)
@@ -113,10 +136,15 @@ class PartyAddressSerializerSecond(serializers.ModelSerializer):
     class Meta:
         model = MC_PartyAddress
         fields = ['id','Address', 'FSSAINo', 'FSSAIExipry', 'PIN', 'IsDefault','fssaidocument'] 
-
+        
+class CitiesSerializerSecond(serializers.ModelSerializer):
+    class Meta:
+        model =  M_Cities
+        fields = ['id','Name']
+    
 class DistrictSerializerSecond(serializers.ModelSerializer):
     class Meta:
-        model =  M_PriceList
+        model =  M_Districts
         fields = ['id','Name']
         
 class StateSerializerSecond(serializers.ModelSerializer):
@@ -141,16 +169,27 @@ class PriceListSerializerSecond(serializers.ModelSerializer):
     
 class M_PartiesSerializerSecond(serializers.ModelSerializer):
     PartyAddress = PartyAddressSerializerSecond(many=True)
+    City=CitiesSerializerSecond()
     District= DistrictSerializerSecond()
     State= StateSerializerSecond()
     Company = CompanySerializerSecond()
     PartyType = PartyTypeSerializerSecond()
     PriceList=PriceListSerializerSecond()
     PartyPrefix = PartyPrefixsSerializer(many=True)
+
     class Meta:
         model =  M_Parties
         fields = '__all__'
         
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(M_PartiesSerializerSecond, self).to_representation(instance)
+        # if parent is None, overwrite
+        if not ret.get("Latitude", None):
+            ret["Latitude"] = None  
+        if not ret.get("Longitude", None):
+            ret["Longitude"] = None    
+        return ret    
 
 class M_PartiesSerializerThird(serializers.Serializer):
     
@@ -159,14 +198,22 @@ class M_PartiesSerializerThird(serializers.Serializer):
     ManagementEmpparty__Party_id = serializers.IntegerField()
     
 
-class M_PartiesSerializerFourth(serializers.ModelSerializer):
-   
-    District= DistrictSerializerSecond()
-    State= StateSerializerSecond()
-    PartyType = PartyTypeSerializerSecond()
-    class Meta:
-        model =  M_Parties
-        fields = '__all__'
+class M_PartiesSerializerFourth(serializers.Serializer):
+    id = serializers.IntegerField()
+    PartyName = serializers.CharField(max_length=500)
+    PartyTypeName = serializers.CharField(max_length=500)
+    StateName = serializers.CharField(max_length=500)
+    DistrictName = serializers.CharField(max_length=500)
+    PartyID = serializers.IntegerField()
+    
+    
+    # City=CitiesSerializerSecond()
+    # District= DistrictSerializerSecond()
+    # State= StateSerializerSecond()
+    # PartyType = PartyTypeSerializerSecond()
+    # class Meta:
+    #     model =  M_Parties
+    #     fields = '__all__'
         
         
 ####################################################################################################################     
@@ -187,7 +234,7 @@ class UpdateMC_PartySubPartySerializer(serializers.ModelSerializer):
     
     class Meta:
         model =MC_PartySubParty
-        fields =['Party','CreatedBy','UpdatedBy']
+        fields =['Party','Route','CreatedBy','UpdatedBy']
 
 
 class UpdateM_PartiesSerializer(serializers.ModelSerializer):
@@ -218,8 +265,7 @@ class UpdateM_PartiesSerializer(serializers.ModelSerializer):
             'State', instance.State)
         instance.District = validated_data.get(
             'District', instance.District)
-        instance.Taluka = validated_data.get(
-            'Taluka', instance.Taluka)
+        
         instance.City = validated_data.get(
             'City', instance.City)
         instance.SAPPartyCode = validated_data.get(
@@ -234,9 +280,12 @@ class UpdateM_PartiesSerializer(serializers.ModelSerializer):
             'District', instance.District)
         instance.isActive = validated_data.get(
             'isActive', instance.isActive)
-        
         instance.MkUpMkDn = validated_data.get(
             'MkUpMkDn', instance.MkUpMkDn)
+        instance.Latitude = validated_data.get(
+            'Latitude', instance.Latitude)
+        instance.Longitude = validated_data.get(
+            'Longitude', instance.Longitude)
             
         instance.save()   
         
@@ -247,7 +296,13 @@ class UpdateM_PartiesSerializer(serializers.ModelSerializer):
             Partyprefix = MC_PartyPrefixs.objects.create(Party=instance, **PartyPrefixs_data)
              
         for PartyAddress_updatedata in validated_data['PartyAddress']:
-            Partyaddress = MC_PartyAddress.objects.filter(id=PartyAddress_updatedata['id']).update(Address=PartyAddress_updatedata['Address'],FSSAINo=PartyAddress_updatedata['FSSAINo'],FSSAIExipry=PartyAddress_updatedata['FSSAIExipry'],PIN=PartyAddress_updatedata['PIN'],IsDefault=PartyAddress_updatedata['IsDefault'],fssaidocument=PartyAddress_updatedata['fssaidocument'])
+            
+            if PartyAddress_updatedata['id'] >0:
+                Partyaddress = MC_PartyAddress.objects.filter(id=PartyAddress_updatedata['id']).update(Address=PartyAddress_updatedata['Address'],FSSAINo=PartyAddress_updatedata['FSSAINo'],FSSAIExipry=PartyAddress_updatedata['FSSAIExipry'],PIN=PartyAddress_updatedata['PIN'],IsDefault=PartyAddress_updatedata['IsDefault'],fssaidocument=PartyAddress_updatedata['fssaidocument'])
+            else:
+                PartyPrefix_data = PartyAddress_updatedata.pop('id')
+                Party = MC_PartyAddress.objects.create(Party=instance, **PartyAddress_updatedata)   
+               
             
         query=M_PartyType.objects.filter(id=instance.PartyType.id).values('IsVendor')
        
@@ -263,13 +318,8 @@ class UpdateM_PartiesSerializer(serializers.ModelSerializer):
                         
         return instance        
         
-        
-        
-        
-            
-    
-    
-   
+                    
+
    
   
 

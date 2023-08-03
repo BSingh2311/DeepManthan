@@ -305,12 +305,12 @@ class UserPartiesViewSecond(CreateAPIView):
         try:
             with transaction.atomic():
                 query = MC_EmployeeParties.objects.raw(
-                    '''SELECT  a.id,b.Role_id Role,M_Roles.Name AS RoleName,a.Party_id,M_Parties.Name AS PartyName ,a.Employee_id,M_Parties.SAPPartyCode from (SELECT MC_EmployeeParties.id,MC_EmployeeParties.Party_id,'0' RoleID,Employee_id FROM MC_EmployeeParties where Employee_id=%s)a left join (select MC_UserRoles.Party_id,MC_UserRoles.Role_id,Employee_id FROM MC_UserRoles join M_Users on M_Users.id=MC_UserRoles.User_id WHERE M_Users.Employee_id=%s)b on a.Party_id=b.Party_id left join M_Parties on M_Parties.id=a.Party_id Left join M_Roles on M_Roles.id=b.Role_id''', ([id], [id]))
+                    '''SELECT  a.id,b.Role_id Role,M_Roles.Name AS RoleName,a.Party_id,M_Parties.Name AS PartyName ,a.Employee_id,M_Parties.SAPPartyCode,M_PartyType.IsSCM as IsSCMPartyType,M_Parties.GSTIN from (SELECT MC_EmployeeParties.id,MC_EmployeeParties.Party_id,'0' RoleID,Employee_id FROM MC_EmployeeParties where Employee_id=%s)a left join (select MC_UserRoles.Party_id,MC_UserRoles.Role_id,Employee_id FROM MC_UserRoles join M_Users on M_Users.id=MC_UserRoles.User_id WHERE M_Users.Employee_id=%s)b on a.Party_id=b.Party_id left join M_Parties on M_Parties.id=a.Party_id Left join M_Roles on M_Roles.id=b.Role_id left join M_PartyType on M_Parties.PartyType_id=M_PartyType.id''', ([id], [id]))
                 # print(str(query.query))
                 if not query:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Parties Not available', 'Data': []})
                 else:
-                    M_UserParties_Serializer = M_UserPartiesSerializer(
+                    M_UserParties_Serializer = M_UserPartiesSerializer1(
                         query, many=True).data
 
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': M_UserParties_Serializer})
@@ -328,11 +328,12 @@ class UserPartiesForLoginPage(CreateAPIView):
         try:
             with transaction.atomic():
                 query = MC_EmployeeParties.objects.raw(
-                    '''SELECT  MC_UserRoles.id,MC_UserRoles.Party_id,MC_UserRoles.Role_id Role,M_Roles.Name AS RoleName,M_Parties.Name AS PartyName ,M_Users.Employee_id,M_Parties.SAPPartyCode,M_PartyType.IsSCM
+                    '''SELECT  MC_UserRoles.id,MC_UserRoles.Party_id,MC_UserRoles.Role_id Role,M_Roles.Name AS RoleName,M_Parties.Name AS PartyName ,M_Users.Employee_id,M_Parties.SAPPartyCode,M_PartyType.IsSCM as IsSCMPartyType,M_Parties.GSTIN,MC_PartyAddress.FSSAINo,MC_PartyAddress.FSSAIExipry,M_PartyType.id PartyTypeID,M_PartyType.Name PartyType
 
                      FROM  MC_UserRoles
                      JOIN M_Users on M_Users.id=MC_UserRoles.User_id
                      left JOIN M_Parties on M_Parties.id=MC_UserRoles.Party_id
+                     left join MC_PartyAddress on MC_PartyAddress.Party_id=M_Parties.id and MC_PartyAddress.IsDefault=1
                      left join M_PartyType on M_Parties.PartyType_id=M_PartyType.id
                      Left JOIN M_Roles on M_Roles.id=MC_UserRoles.Role_id		 
                      WHERE M_Users.Employee_id=%s ''', [id])
@@ -376,35 +377,55 @@ class GetUserDetailsView(APIView):
 
     def post(self, request):
         UserId = request.data['UserId']
-        Userdata = M_Users.objects.filter(id=UserId)
-
-        UserSerializer = UserListSerializerforgetdata(Userdata, many=True).data
-
-        Employee = M_Employees.objects.filter(id=UserSerializer[0]['Employee'])
-        EmployeeSerializer = M_EmployeesSerializerforgetdata(Employee, many=True).data
-
-        Company = C_Companies.objects.filter(id=EmployeeSerializer[0]['Company'])
-        CompanySerializer = C_CompanySerializer(Company, many=True).data
-
-        request.session['UserID'] = UserId
-        request.session['UserName'] = UserSerializer[0]["LoginName"]
-        request.session['EmployeeID'] = UserSerializer[0]["Employee"]
-        request.session['CompanyID'] = EmployeeSerializer[0]["Company"]
-        request.session['IsSCMCompany'] = CompanySerializer[0]["IsSCM"]
-        request.session['CompanyGroup'] = CompanySerializer[0]["CompanyGroup"]
-        print(request.session.get('UserName'),request.session.get('IsSCMCompany'),request.session.get('CompanyGroup'))
-
+        
+        '''New code Date 26/07/2023'''
+        
+        user = M_Users.objects.filter(id=UserId).values('Employee','LoginName')
+        employee = M_Employees.objects.filter(id=user[0]['Employee']).values('Company')
+        company = C_Companies.objects.filter(id=employee[0]['Company']).values('Name','IsSCM','CompanyGroup')
         a = list()
         a.append({
             "UserID": UserId,
-            "UserName":UserSerializer[0]["LoginName"],
-            "EmployeeID": UserSerializer[0]["Employee"],
-            "CompanyID": EmployeeSerializer[0]["Company"],
-            "CompanyName": CompanySerializer[0]["Name"],
-            "IsSCMCompany": CompanySerializer[0]["IsSCM"],
-            "CompanyGroup": CompanySerializer[0]["CompanyGroup"]
-
+            "UserName":user[0]["LoginName"],
+            "EmployeeID": user[0]["Employee"],
+            "CompanyID": employee[0]["Company"],
+            "CompanyName": company[0]["Name"],
+            "IsSCMCompany": company[0]["IsSCM"],
+            "CompanyGroup": company[0]["CompanyGroup"]
         })
+        
+        
+        '''Previous  code'''
+        
+        # Userdata = M_Users.objects.filter(id=UserId)
+
+        # UserSerializer = UserListSerializerforgetdata(Userdata, many=True).data
+
+        # Employee = M_Employees.objects.filter(id=UserSerializer[0]['Employee'])
+        # EmployeeSerializer = M_EmployeesSerializerforgetdata(Employee, many=True).data
+
+        # Company = C_Companies.objects.filter(id=EmployeeSerializer[0]['Company'])
+        # CompanySerializer = C_CompanySerializer(Company, many=True).data
+
+        # request.session['UserID'] = UserId
+        # request.session['UserName'] = UserSerializer[0]["LoginName"]
+        # request.session['EmployeeID'] = UserSerializer[0]["Employee"]
+        # request.session['CompanyID'] = EmployeeSerializer[0]["Company"]
+        # request.session['IsSCMCompany'] = CompanySerializer[0]["IsSCM"]
+        # request.session['CompanyGroup'] = CompanySerializer[0]["CompanyGroup"]
+        # print(request.session.get('UserName'),request.session.get('IsSCMCompany'),request.session.get('CompanyGroup'))
+
+        # a = list()
+        # a.append({
+        #     "UserID": UserId,
+        #     "UserName":UserSerializer[0]["LoginName"],
+        #     "EmployeeID": UserSerializer[0]["Employee"],
+        #     "CompanyID": EmployeeSerializer[0]["Company"],
+        #     "CompanyName": CompanySerializer[0]["Name"],
+        #     "IsSCMCompany": CompanySerializer[0]["IsSCM"],
+        #     "CompanyGroup": CompanySerializer[0]["CompanyGroup"]
+
+        # })
 
         return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': a[0]})
 

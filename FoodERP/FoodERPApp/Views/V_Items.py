@@ -10,7 +10,10 @@ from ..Serializer.S_PriceLists import *
 from  ..Serializer.S_Items import *
 from  ..Serializer.S_GeneralMaster import *
 from ..models import *
-        
+
+
+
+
 class M_ItemTag(CreateAPIView):
     permission_classes = (IsAuthenticated,)
     # authentication_class = JSONWebTokenAuthentication
@@ -82,9 +85,9 @@ class M_ItemsFilterView(CreateAPIView):
                 
                 if IsSCMCompany == 1:
                     Company=C_Companies.objects.filter(CompanyGroup=CompanyGroupID)
-                    query = M_Items.objects.filter(IsSCM=1,Company__in=Company).order_by('Sequence')
+                    query = M_Items.objects.select_related().filter(IsSCM=1,Company__in=Company).order_by('Sequence')
                 else:
-                    query = M_Items.objects.filter(Company=CompanyID).order_by('Sequence')
+                    query = M_Items.objects.select_related().filter(Company=CompanyID).order_by('Sequence')
                 # return JsonResponse({'query':  str(query.query)})
                 if not query:
                     return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Items Not available', 'Data': []})
@@ -427,16 +430,24 @@ class ProductAndMarginReportView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
 
     @transaction.atomic()
-    def get(self, request):
+    def get(self, request,IsSCM=0,PartyID=0):
         try:
             with transaction.atomic():
-                Itemsdata = M_Items.objects.all()
+                # print(IsSCM)
+                if IsSCM == '0':
+                    Itemsdata = M_Items.objects.all()
+                else:
+                    partyitem=MC_PartyItems.objects.filter(Party=PartyID).values('Item')
+                    Itemsdata = M_Items.objects.filter(id__in=partyitem)
+                
+                # print(Itemsdata.query)
                 if Itemsdata.exists():
                     Itemsdata_Serializer = ItemReportSerializer(Itemsdata,many=True).data
                     ItemsList = list()
                     for a in Itemsdata_Serializer:
-
                         
+                       
+
                         if a['Length'] is None:
                             BoxSize=""
                             
@@ -448,10 +459,17 @@ class ProductAndMarginReportView(CreateAPIView):
                         ItemGstHsnCodedata = M_GSTHSNCode.objects.filter(Item=a['id'],IsDeleted=0).values('GSTPercentage','HSNCode').order_by('-EffectiveDate','-id')[:1]
                         Itemshelfdata = MC_ItemShelfLife.objects.filter(Item=a['id'],IsDeleted=0).values('Days').order_by('-id')[:1]
 
+                        if IsSCM == '0' :
+                            query = M_PriceList.objects.values('id','Name')
+                        else:
+                            qur1=MC_PartySubParty.objects.filter(Q(Party=PartyID)|Q(SubParty=PartyID)).values('SubParty')
+                            qur2=M_Parties.objects.filter(id__in=qur1).values('PriceList').distinct()
+                            query = M_PriceList.objects.values('id','Name').filter(id__in=qur2)
                         
-
-                        query = M_PriceList.objects.values('id','Name')
+                        
+                        
                         ItemMargins=list()
+                        RateList=list()
                         
                         for x in query:
                             
@@ -459,11 +477,17 @@ class ProductAndMarginReportView(CreateAPIView):
                             Rate=RateCalculationFunction(0,a['id'],0,0,1,0,x['id']).RateWithGST()
                             
                             ItemMargins.append({
-                                x['Name']+'Margin' : Margin[0]['TodaysMargin'],
-                                x['Name']+'RateWithGST' : Rate[0]['RatewithGST'],
-                                x['Name']+'RateWithOutGST' : Rate[0]['RateWithoutGST']
+                                x['Name']+'Margin' : float(Margin[0]['TodaysMargin']),
+                                
+                            })
+                            RateList.append({
+                               
+                                x['Name']+'RateWithGST' : float(Rate[0]['RatewithGST']),
+                                x['Name']+'RateWithOutGST' : float(Rate[0]['RateWithoutGST'])
                             })
                         
+                        ww=ItemMargins+RateList
+                       
                         ItemsList.append({
 
                             "FE2ItemID": a['id'],
@@ -475,16 +499,15 @@ class ProductAndMarginReportView(CreateAPIView):
                             "SKUActiveDeactivestatus":a['isActive'],
                             "BoxSize":BoxSize,
                             "StoringCondition":a['StoringCondition'],
-                            "MRP":ItemMRPdata[0]['MRP'],
-                            "GST":ItemGstHsnCodedata[0]['GSTPercentage'],
-                            "CompanyName": a['Company']['Name'],
+                            "MRP":float(ItemMRPdata[0]['MRP']),
+                            "GST":float(ItemGstHsnCodedata[0]['GSTPercentage']),
                             "BaseUnit": a['BaseUnitID']['Name'],
                             "SKUGr":a['Grammage'],
                             "Product":a['ItemGroupDetails'][0]['Group']['Name'],
                             "subProduct":a['ItemGroupDetails'][0]['SubGroup']['Name'],
                             "Company": a['Company']['Name'],
-                            "ShelfLife":Itemshelfdata[0]['Days'],
-                            "ItemMargins":ItemMargins
+                            "ShelfLife":float(Itemshelfdata[0]['Days']),
+                            "ItemMargins":ww
                             
                         })
                     return JsonResponse({'StatusCode': 200, 'Status': True,'Message': '','Data': ItemsList})
@@ -492,3 +515,164 @@ class ProductAndMarginReportView(CreateAPIView):
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
 
+
+class DiscountMasterSaveView(CreateAPIView):
+
+    permission_classes = (IsAuthenticated,)
+    # authentication_class = JSONWebTokenAuthentication
+
+    @transaction.atomic()
+    def post(self, request, id=0):
+        try:
+            with transaction.atomic():
+                DiscountMaster_data = JSONParser().parse(request)
+                Discount_serializer = DiscountSerializer(data=DiscountMaster_data, many=True)
+                if Discount_serializer.is_valid():
+                    Discount_serializer.save()
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Discount Master Save Successfully', 'Data': []})
+                else:
+                    transaction.set_rollback(True)
+                return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': Discount_serializer.errors, 'Data': []})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+
+
+class DiscountMasterView(CreateAPIView):
+
+    permission_classes = (IsAuthenticated,)
+    # authentication_class = JSONWebTokenAuthentication
+
+    @transaction.atomic()
+    def get(self, request, id=0):
+        try:
+            with transaction.atomic():
+                DiscountMasterdata = M_DiscountMaster.objects.get(id=id)
+                Discount_Serializer = DiscountSerializer(DiscountMasterdata)
+                return JsonResponse({'StatusCode': 200, 'Status': True,'Message': '', 'Data': Discount_Serializer.data})
+        except  M_Bank.DoesNotExist:
+            return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'DiscountMaster Not available', 'Data': []})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
+        
+
+    @transaction.atomic()
+    def put(self, request, id=0):
+        try:
+            with transaction.atomic():
+                DiscountMasterdata = JSONParser().parse(request)
+                DiscountMasterByID = M_DiscountMaster.objects.get(id=id)
+                Discount_Serializer = DiscountSerializer(
+                    DiscountMasterByID, data=DiscountMasterdata)
+                if Discount_Serializer.is_valid():
+                    Discount_Serializer.save()
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'DiscountMaster Updated Successfully','Data' :[]})
+                else:
+                    transaction.set_rollback(True)
+                    return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': Discount_Serializer.errors, 'Data' :[]})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
+    
+
+    @transaction.atomic()
+    def delete(self, request, id=0):
+        try:
+            with transaction.atomic():
+                DiscountMasterdata = M_DiscountMaster.objects.get(id=id)
+                DiscountMasterdata.delete()
+                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'DiscountMaster Deleted Successfully','Data':[]})
+        except M_Bank.DoesNotExist:
+            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':'DiscountMaster Not available', 'Data': []})
+        except IntegrityError:
+            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':'Bank used in transaction', 'Data': []})
+
+
+class GetDiscountView(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    
+    @transaction.atomic()
+    def post(self, request,id=0):
+        try:
+            with transaction.atomic():
+                Discountdata = JSONParser().parse(request)
+                FromDate = Discountdata['FromDate']
+                ToDate = Discountdata['ToDate']
+                PartyType = Discountdata['PartyType']
+                PriceList = Discountdata['PriceList']
+                Party = Discountdata['PartyID']
+                Customer = Discountdata['CustomerID']
+
+                query = M_DiscountMaster.objects.filter(FromDate__range=[FromDate,ToDate],PartyType=PartyType,PriceList=PriceList)
+                if query:
+                    Discount_Serializer = DiscountSerializerSecond(query, many=True).data
+                    DiscountList = list()
+                    for a in Discount_Serializer:
+                        
+                        DiscountList.append({
+                            "ItemId":a['Item']['id'],
+                            "ItemName": a['Item']['Name'],
+                            "Discount":a['Discount'],
+                            "DiscountType":a['DiscountType']
+                                 
+                        })
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data':DiscountList})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# class GetDiscountView(CreateAPIView):
+
+#     permission_classes = (IsAuthenticated,)
+#     # authentication_class = JSONWebTokenAuthentication
+
+#     @transaction.atomic()
+#     def post(self, request, id=0):
+#         try:
+#             with transaction.atomic():
+#                 DiscountMaster_data = JSONParser().parse(request)
+#                 FromDate=DiscountMaster_data['FromDate']
+#                 ToDate=DiscountMaster_data['ToDate']
+#                 PartyType=DiscountMaster_data['PartyType']
+#                 PriceList=DiscountMaster_data['PriceList']
+#                 PartyID=DiscountMaster_data['PartyID']
+#                 # CustomerID=DiscountMaster_data['CustomerID'] 
+#                 query = M_DiscountMaster.objects.all()
+
+#                 if query:
+#                     Discount_Serializer = DiscountSerializerSecond(query, many=True).data
+#                     DiscountList = list()
+
+#                     for a in Discount_Serializer:
+#                         DiscountList.append({
+#                             "ItemId":a['Item']['id'],
+#                             "ItemName": a['Item']['Name'],
+#                             "Discount":a['Discount'],
+#                             "DiscountType":a['DiscountType']
+
+#                         })
+#                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data':DiscountList})
+#         except Exception as e:
+#             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+
+                   
+
+            

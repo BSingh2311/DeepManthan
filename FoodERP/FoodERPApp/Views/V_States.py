@@ -58,8 +58,21 @@ class M_CitiesView(CreateAPIView):
             with transaction.atomic():
                 Cities_data = M_Cities.objects.filter(District=id)
                 if Cities_data.exists():
-                    Cities_serializer =  CitiesSerializerSecond(Cities_data, many=True)
-                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': Cities_serializer.data})
+                    Cities_serializer =  CitiesSerializerSecond(Cities_data, many=True).data
+                    CitiesList = list()
+                    for a in Cities_serializer:
+                        CitiesList.append({
+                            "id": a['id'],
+                            "Name": a['Name'],
+                            "CreatedBy":a['CreatedBy'],
+                            "CreatedOn":a['CreatedOn'],
+                            "UpdatedBy":a['UpdatedBy'],
+                            "District":a['District']['id'],
+                            "DistrictName":a['District']['Name'],
+                            "State":a['District']['State']['id'],
+                            "StateName":a['District']['State']['Name']
+                    })
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': CitiesList})
                 return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'City Not available', 'Data': []})    
         except Exception:
             raise JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  'Exception Found', 'Data': []})
@@ -74,8 +87,9 @@ class M_CitiesView(CreateAPIView):
                     Cities_serializer.save()
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'City Save Successfully', 'Data': []})
                 else:
-             
                     return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': Cities_serializer.errors, 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+
+
 

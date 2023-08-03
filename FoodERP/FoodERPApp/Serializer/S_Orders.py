@@ -21,13 +21,22 @@ class M_POTypeserializerSecond(serializers.ModelSerializer):
 class PartiesSerializerSecond(serializers.ModelSerializer):
     class Meta:
         model = M_Parties
-        fields = ['id','Name']
-
+        fields = ['id','Name','SAPPartyCode','PAN','GSTIN']
+        
+    def to_representation(self, instance):
+        # get representation from ModelSerializer
+        ret = super(PartiesSerializerSecond, self).to_representation(instance)
+        # if parent is None, overwrite
+        if not ret.get("PAN", None):
+            ret["PAN"] = None  
+            
+        return ret 
+    
 class TC_OrderItemsSerializer(serializers.ModelSerializer):
     
    class Meta:
         model = TC_OrderItems
-        fields = ['Item','Quantity','MRP','Rate','Unit','BaseUnitQuantity','GST','Margin','BasicAmount','GSTAmount','CGST','SGST','IGST','CGSTPercentage','SGSTPercentage','IGSTPercentage','Amount','IsDeleted','Comment','MRPValue','GSTPercentage']
+        fields = ['Item','Quantity','MRP','Rate','Unit','BaseUnitQuantity','GST','Margin','BasicAmount','GSTAmount','CGST','SGST','IGST','CGSTPercentage','SGSTPercentage','IGSTPercentage','Amount','IsDeleted','Comment','MRPValue','GSTPercentage','QtyInBox','QtyInKg','QtyInNo','DiscountType','Discount','DiscountAmount']
 
 class TC_OrderTermsAndConditionsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,7 +48,7 @@ class T_OrderSerializer(serializers.ModelSerializer):
     OrderTermsAndConditions=TC_OrderTermsAndConditionsSerializer(many=True)
     class Meta:
         model = T_Orders
-        fields = ['id','OrderDate','DeliveryDate','Customer','Supplier','OrderNo','FullOrderNumber','OrderType','POType','Division','OrderAmount','Description','BillingAddress','ShippingAddress','CreatedBy', 'UpdatedBy','POFromDate','POToDate','OrderItem','OrderTermsAndConditions']
+        fields = ['id','OrderDate','DeliveryDate','Customer','Supplier','OrderNo','FullOrderNumber','OrderType','POType','Division','OrderAmount','Description','BillingAddress','ShippingAddress','CreatedBy', 'UpdatedBy','POFromDate','POToDate','IsConfirm','OrderItem','OrderTermsAndConditions']
 
     def create(self, validated_data):
         OrderItems_data = validated_data.pop('OrderItem')
@@ -151,7 +160,7 @@ class T_OrderSerializerSecond(serializers.ModelSerializer):
 class PartiesSerializerThird(serializers.ModelSerializer):
     class Meta:
         model = M_Parties
-        fields = ['id','Name','SAPPartyCode']
+        fields = ['id','Name','SAPPartyCode','GSTIN']
 
 
 class UnitSerializerThird(serializers.ModelSerializer):
@@ -223,7 +232,7 @@ class T_OrderSerializerThird(serializers.ModelSerializer):
 class OrderSerializerForGrn(serializers.Serializer):
     id=serializers.IntegerField()
     SupplierName = serializers.CharField(max_length=500)     
-    OrderAmount=serializers.DecimalField(max_digits=10, decimal_places=2) 
+    OrderAmount=serializers.DecimalField(max_digits=20, decimal_places=2) 
     CustomerID =serializers.IntegerField() 
 
 class OrderEditserializer(serializers.Serializer):
@@ -254,7 +263,30 @@ class OrderEditserializer(serializers.Serializer):
     Comment=serializers.CharField(max_length=100) 
     SAPItemCode=serializers.CharField(max_length=100)
     SAPUnitName=serializers.CharField(max_length=100)
+    GroupTypeName=serializers.CharField(max_length=100) 
+    GroupName=serializers.CharField(max_length=100)
+    SubGroupName=serializers.CharField(max_length=100)
+    DiscountType = serializers.CharField(max_length=500)
+    Discount = serializers.DecimalField(max_digits=20, decimal_places=2)
+    DiscountAmount = serializers.DecimalField(max_digits=20, decimal_places=2)
+    StockQuantity = serializers.DecimalField(max_digits=20, decimal_places=3)
+   
+
+class ReportOrderItemSerializer(serializers.ModelSerializer):
+    Item = ItemSerializerSecond(read_only=True)
+    class Meta:
+        model = TC_OrderItems
+        fields = '__all__'
+        
     
+class SummaryReportOrderSerializer(serializers.ModelSerializer):
+    Customer = PartiesSerializerThird(read_only=True)
+    Supplier = PartiesSerializerThird(read_only=True)
+    OrderItem = ReportOrderItemSerializer(read_only=True,many=True)
+    class Meta:
+        model = T_Orders
+        fields = '__all__'
+
     
 class TestGRNReferanceSerializer(serializers.ModelSerializer):
     class Meta:
