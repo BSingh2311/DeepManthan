@@ -6,6 +6,7 @@ from ..Serializer.S_GeneralMaster import  *
 from ..Serializer.S_Parties import  *
 from ..Serializer.S_Items import *
 from ..Serializer.S_Invoices import *
+import re
 
 # Return Save Serializers
 
@@ -34,14 +35,14 @@ class O_LiveBatchesReturnSerializer(serializers.ModelSerializer):
 class PurchaseReturnItemImageSerializer(serializers.ModelSerializer):
     class Meta :
         model= TC_PurchaseReturnItemImages
-        fields = ['Item_pic']
+        fields = ['Item_pic','Image']
 
 class PurchaseReturnItemsSerializer(serializers.ModelSerializer):
     ReturnItemImages = PurchaseReturnItemImageSerializer(many=True)
     
     class Meta :
         model= TC_PurchaseReturnItems
-        fields = fields = ['BatchCode', 'Quantity', 'BaseUnitQuantity', 'MRP', 'Rate', 'BasicAmount', 'TaxType', 'GST', 'GSTAmount', 'Amount','CGST', 'SGST', 'IGST', 'CGSTPercentage', 'SGSTPercentage', 'IGSTPercentage', 'CreatedOn', 'Item', 'Unit', 'BatchDate','ReturnItemImages','MRPValue','GSTPercentage','ItemReason','Comment','ApprovedQuantity','SubReturn','BatchID','DiscountType','Discount','DiscountAmount']   
+        fields = fields = ['BatchCode', 'Quantity', 'BaseUnitQuantity', 'MRP', 'Rate', 'BasicAmount', 'TaxType', 'GST', 'GSTAmount', 'Amount','CGST', 'SGST', 'IGST', 'CGSTPercentage', 'SGSTPercentage', 'IGSTPercentage', 'CreatedOn', 'Item', 'Unit', 'BatchDate','ReturnItemImages','MRPValue','GSTPercentage','ItemReason','Comment','ApprovedQuantity','SubReturn','BatchID','DiscountType','Discount','DiscountAmount','primarySourceID','ApprovedByCompany']   
         
 class PurchaseReturnReferences(serializers.ModelSerializer):
     class Meta :
@@ -69,6 +70,12 @@ class PurchaseReturnSerializer(serializers.ModelSerializer):
         for ReturnItem_data in ReturnItems_data:
             ReturnItemImages_data = ReturnItem_data.pop('ReturnItemImages')
             ReturnItemID =TC_PurchaseReturnItems.objects.create(PurchaseReturn=PurchaseReturnID, **ReturnItem_data)
+            if(Mode == 1 or Mode ==2):
+                a=match = re.search(r'\((\d+)\)', str(ReturnItemID))
+                number = match.group(1)
+                print(number) 
+                UpdateReturnItemID=TC_PurchaseReturnItems.objects.filter(id=number).update(primarySourceID=number)
+
             
             for ReturnItemImage_data in ReturnItemImages_data:
                 ItemImages =TC_PurchaseReturnItemImages.objects.create(PurchaseReturnItem=ReturnItemID, **ReturnItemImage_data)
@@ -158,6 +165,8 @@ class PurchaseReturnItemsSerializer(serializers.ModelSerializer):
     Item = M_ItemsSerializer()
     ItemReason = ItemsReasonSerializer()
     Unit=Mc_ItemUnitSerializerThird()
+    ReturnItemImages = PurchaseReturnItemImageSerializer(many=True)
+    
     class Meta :
         model= TC_PurchaseReturnItems
         fields = '__all__'
@@ -233,15 +242,73 @@ class ReturnApproveQtyO_LiveBatchesListSerializer(serializers.ModelSerializer):
         model = O_LiveBatches
         fields = ['MRP','MRPValue','GST','GSTPercentage','Rate','BatchDate', 'BatchCode','SystemBatchDate','SystemBatchCode','ItemExpiryDate','OriginalBatchBaseUnitQuantity','O_BatchWiseLiveStockList']                    
 
+class PurchaseReturnItemsSerializer(serializers.ModelSerializer):
+    
+    class Meta :
+        model= TC_PurchaseReturnItems
+        fields = '__all__'
+
+
 class ReturnApproveQtySerializer(serializers.ModelSerializer):
     O_LiveBatchesList=ReturnApproveQtyO_LiveBatchesListSerializer(many=True)
+    ReturnItem = PurchaseReturnItemsSerializer(many=True)
+    
     class Meta :
         model= T_PurchaseReturn
-        fields = ['O_LiveBatchesList']
+        fields = ['O_LiveBatchesList','ReturnItem']
     
     def create(self, validated_data):
-    
+        print(validated_data)
+        
+        ReturnItem_data=validated_data.pop('ReturnItem')
         O_LiveBatchesLists_data=validated_data.pop('O_LiveBatchesList')
+        
+        for ReturnItem in ReturnItem_data:
+            print(ReturnItem["primarySourceID"],ReturnItem["ApprovedByCompany"])
+            # Approved=TC_PurchaseReturnItems.objects.filter(id=ReturnItem["primarySourceID"]).update(ApprovedByCompany=ReturnItem["ApprovedByCompany"],FinalApprovalDate=ReturnItem["FinalApprovalDate"],primarySourceID=ReturnItem["primarySourceID"])
+            
+            if ReturnItem["ApprovedByCompany"] is not None:
+                zz=TC_PurchaseReturnItems.objects.filter(primarySourceID=ReturnItem["primarySourceID"]).values('id','Rate','GSTPercentage','Discount','DiscountType','IGST')
+            
+                for b in zz:
+                    
+                    ApprovedRate  = b["Rate"]
+                    ApprovedBasicAmount = round(b["Rate"] * ReturnItem["ApprovedByCompany"],2)
+                    print(b['DiscountType'],'kkkkkkkkkkkk')
+                    if b['DiscountType'] == '2': 
+                        print('2"""""""2"2"""')
+                        disCountAmt = ApprovedBasicAmount - (ApprovedBasicAmount / ((100 + b['Discount']) / 100)) 
+                    else:
+                        print('11!!!!!!!!!!!!!',b['Discount'])
+                        disCountAmt =  ReturnItem["ApprovedByCompany"] * b['Discount']
+                    
+                    print(disCountAmt)
+                    ApprovedDiscountAmount = round(disCountAmt,2)
+                    ApprovedBasicAmount= ApprovedBasicAmount-disCountAmt
+                    
+                    ApprovedGSTPercentage= b["GSTPercentage"]
+                    if b['IGST'] == 0:
+                        ApprovedCGSTPercentage = b["GSTPercentage"]/2
+                        ApprovedSGSTPercentage = b["GSTPercentage"]/2
+                        ApprovedIGSTPercentage = 0
+                        ApprovedCGST = round(ApprovedBasicAmount * (ApprovedCGSTPercentage/100),2)
+                        ApprovedSGST = ApprovedCGST
+                        ApprovedIGST = 0
+                        ApprovedGSTAmount = ApprovedCGST + ApprovedSGST
+                    else:
+                        ApprovedCGSTPercentage = 0
+                        ApprovedSGSTPercentage = 0
+                        ApprovedIGSTPercentage = b["GSTPercentage"]
+                        ApprovedCGST = 0
+                        ApprovedSGST = 0
+                        ApprovedIGST = round(ApprovedBasicAmount * (b["GSTPercentage"]/100),2)
+                        ApprovedGSTAmount = round(ApprovedBasicAmount * (b["GSTPercentage"]/100),2)
+                    
+                    ApprovedAmount =    ApprovedBasicAmount + ApprovedGSTAmount
+                    
+                    
+                    SetFlag=TC_PurchaseReturnItems.objects.filter(id=b["id"]).update(ApprovedByCompany=ReturnItem["ApprovedByCompany"],FinalApprovalDate=ReturnItem["FinalApprovalDate"],primarySourceID=ReturnItem["primarySourceID"],ApprovedAmount=ApprovedAmount, ApprovedBasicAmount=ApprovedBasicAmount, ApprovedCGST=ApprovedCGST, ApprovedCGSTPercentage=ApprovedCGSTPercentage, ApprovedGSTAmount=ApprovedGSTAmount, ApprovedGSTPercentage=ApprovedGSTPercentage, ApprovedIGST=ApprovedIGST, ApprovedIGSTPercentage=ApprovedIGSTPercentage, ApprovedRate=ApprovedRate, ApprovedSGST=ApprovedSGST, ApprovedSGSTPercentage=ApprovedSGSTPercentage, ApprovedDiscountAmount=ApprovedDiscountAmount)    
+
         for O_LiveBatchesList_data in O_LiveBatchesLists_data :
             O_BatchWiseLiveStockLists=O_LiveBatchesList_data.pop('O_BatchWiseLiveStockList')
             BatchID=O_LiveBatches.objects.create(**O_LiveBatchesList_data)

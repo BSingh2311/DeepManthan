@@ -44,7 +44,6 @@ class CreditDebitNoteListView(CreateAPIView):
                 else:
                     query = T_CreditDebitNotes.objects.filter(CRDRNoteDate__range=[FromDate, ToDate], Customer=Customer, Party=Party).filter(P)
 
-                print(str(query.query))
                 if query:
                     CreditDebit_serializer = CreditDebitNoteSecondSerializer(
                         query, many=True).data
@@ -64,14 +63,16 @@ class CreditDebitNoteListView(CreateAPIView):
                             "PartyID": a['Party']['id'],
                             "Party": a['Party']['Name'],
                             "Narration": a['Narration'],
-                            "Receipt": a['Receipt']['FullReceiptNumber'],
-                            "Invoice": a['Invoice']['FullInvoiceNumber'],
-                            "PurchaseReturn": a['PurchaseReturn']['FullReturnNumber'],
-                            "CreatedOn": a['CreatedOn']
+                            "CreatedOn": a['CreatedOn'],
+                            "IsRecordDeleted" : a["IsDeleted"],
+                            "CRDRNoteUploads" : a["CRDRNoteUploads"]
                         })
+                    log_entry = create_transaction_logNew(request, CreditDebitdata, Party,'CreditDebitNote List',83,0,FromDate,ToDate,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': CreditDebitListData})
+                log_entry = create_transaction_logNew(request, CreditDebitdata, Party,'Record Not Found',29,0)
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Record Not Found', 'Data': []})
         except Exception as e:
+            log_entry = create_transaction_logNew(request, CreditDebitdata, 0,Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
 
@@ -96,16 +97,34 @@ class CreditDebitNoteView(CreateAPIView):
                 b = GetPrifix.GetCRDRPrifix(Party, NoteType)
                 CreditNotedata['FullNoteNumber'] = str(b)+""+str(a)
                 # ==================================================================================================
-
+                CRDRNoteItems = CreditNotedata['CRDRNoteItems']
+                for CRDRNoteItem in CRDRNoteItems:
+                       
+                    BaseUnitQuantity=UnitwiseQuantityConversion(CRDRNoteItem['Item'],CRDRNoteItem['Quantity'],CRDRNoteItem['Unit'],0,0,0,0).GetBaseUnitQuantity()
+                    CRDRNoteItem['BaseUnitQuantity'] =  round(BaseUnitQuantity,3) 
+                    QtyInNo=UnitwiseQuantityConversion(CRDRNoteItem['Item'],CRDRNoteItem['Quantity'],CRDRNoteItem['Unit'],0,0,1,0).ConvertintoSelectedUnit()
+                    CRDRNoteItem['QtyInNo'] =  float(QtyInNo)
+                    QtyInKg=UnitwiseQuantityConversion(CRDRNoteItem['Item'],CRDRNoteItem['Quantity'],CRDRNoteItem['Unit'],0,0,2,0).ConvertintoSelectedUnit()
+                    CRDRNoteItem['QtyInKg'] =  float(QtyInKg)
+                    QtyInBox=UnitwiseQuantityConversion(CRDRNoteItem['Item'],CRDRNoteItem['Quantity'],CRDRNoteItem['Unit'],0,0,4,0).ConvertintoSelectedUnit()
+                    CRDRNoteItem['QtyInBox'] = float(QtyInBox)
+                
                 CreditNote_Serializer = CreditDebitNoteSerializer(
                     data=CreditNotedata)
                 if CreditNote_Serializer.is_valid():
-                    CreditNote_Serializer.save()
-                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'CreditdebitNote Save Successfully', 'Data': []})
+                    CreditDebit = CreditNote_Serializer.save()
+                    LastinsertID = CreditDebit.id
+                    log_entry = create_transaction_logNew(request, CreditNotedata, Party,'CreditdebitNote Save Successfully',84,LastinsertID,0,0,CreditNotedata['Customer'])
+                    if(NoteType==37 or NoteType==39):
+                        return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'CreditNote Save Successfully', 'Data': []})
+                    else:
+                        return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'DebitNote Save Successfully', 'Data': []})
                 else:
+                    log_entry = create_transaction_logNew(request, CreditNotedata, Party,CreditNote_Serializer.errors,34,0)
                     transaction.set_rollback(True)
-                return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': CreditNote_Serializer.errors, 'Data': []})
+                    return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': CreditNote_Serializer.errors, 'Data': []})
         except Exception as e:
+            log_entry = create_transaction_logNew(request, CreditNotedata, 0,Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
     @transaction.atomic()
@@ -115,13 +134,14 @@ class CreditDebitNoteView(CreateAPIView):
                 query = T_CreditDebitNotes.objects.filter(id=id)
                
                 if query:
+                    
                     CreditDebitNote_serializer = SingleCreditDebitNoteThirdSerializer(query,many=True).data
                     CreditDebitListData = list()
                     # return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Record Not Found', 'Data': CreditDebitNote_serializer})
                     for a in CreditDebitNote_serializer:
                         CRDRNoteItems = list()
-                        
                         for b in a['CRDRNoteItems']:
+                          
                             CRDRNoteItems.append({
                                 "Item": b['Item']['id'],
                                 "ItemName": b['Item']['Name'],
@@ -146,6 +166,16 @@ class CreditDebitNoteView(CreateAPIView):
                                 "Amount": b['Amount'],
                                 "BatchCode": b['BatchCode'],
                                 "BatchDate": b['BatchDate'],
+                                "GSTPercentage": b['GSTPercentage'],
+                                "MRPValue": b['MRPValue'],
+                                "Discount": b['Discount'],
+                                "DiscountAmount": b['DiscountAmount'],
+                                "DiscountType": b['DiscountType'],
+                                "QtyInNo": b['QtyInNo'],
+                                "QtyInKg": b['QtyInKg'],
+                                "QtyInBox": b['QtyInBox'],
+                                "ItemComment":b['ItemComment']
+                                
                             }) 
                         
                         CRDRInvoices = list()
@@ -196,20 +226,32 @@ class CreditDebitNoteView(CreateAPIView):
                             "CRDRNoteItems":CRDRNoteItems,
                             "CRDRInvoices": CRDRInvoices 
                         })
+                    # log_entry = create_transaction_logNew(request, {'CreditDebitNoteID':id}, a['Party']['id'],'CreditdebitNote',85,0,0,0,a['Customer']['id'])
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': CreditDebitListData[0]})
+                # log_entry = create_transaction_logNew(request, {'CreditDebitNoteID':id}, 0,'Record Not Found',29,0)
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Record Not Found', 'Data': []})
         except Exception as e:
+            log_entry = create_transaction_logNew(request, {'CreditDebitNoteID':id}, 0, Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
     @transaction.atomic()
     def delete(self, request, id=0):
         try:
             with transaction.atomic():
-                CreditDebitdata = T_CreditDebitNotes.objects.get(id=id)
-                CreditDebitdata.delete()
-                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'CreditdebitNote Deleted Successfully', 'Data': []})
+
+                query = T_CreditDebitNotes.objects.filter(id=id).values('NoteType')
+                NoteType = query[0]['NoteType']
+                CreditDebitdata = T_CreditDebitNotes.objects.filter(id=id).update(IsDeleted=1)
+                if(NoteType==37 or NoteType==39):
+                    log_entry = create_transaction_logNew(request, {'CreditDebitNoteID':id}, 0,'CreditNote Deleted Successfully',86,0)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'CreditNote Deleted Successfully', 'Data': []})
+                else:
+                    log_entry = create_transaction_logNew(request, {'CreditDebitNoteID':id}, 0,'DebitNote Deleted Successfully',86,0)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'DebitNote Deleted Successfully', 'Data': []})
         except IntegrityError:
+            log_entry = create_transaction_logNew(request, {'CreditDebitNoteID':id}, 0,'CreditdebitNote used in another table',8,0)
             return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'CreditdebitNote used in another table', 'Data': []})
         except Exception as e:
+            log_entry = create_transaction_logNew(request, {'CreditDebitNoteID':id}, 0,Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 

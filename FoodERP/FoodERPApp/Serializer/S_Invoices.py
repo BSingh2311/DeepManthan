@@ -36,7 +36,7 @@ class PartiesSerializerSecond(serializers.ModelSerializer):
     # MCSubParty=MCPartySubPartySerializer(many=True) # code by ankita 
     class Meta:
         model = M_Parties
-        fields = ['id','Name','GSTIN','PAN','Email','PartyAddress','State','MobileNo'] 
+        fields = ['id','Name','GSTIN','PAN','Email','PartyAddress','State','MobileNo','PartyType_id'] 
 
 class UnitSerializerThird(serializers.ModelSerializer):
     class Meta:
@@ -188,7 +188,7 @@ class InvoiceItemsSerializerSecond(serializers.ModelSerializer):
             ret["Margin"] = {"id": None, "Margin": None} 
         
         if not ret.get("GST", None):
-            ret["GST"] = {"id": None, "GSTPercentage": None}        
+            ret["GST"] = {"id": None, "GSTPercentage": None, "HSNCode":None }        
              
         return ret    
 class InvoiceUploadsSerializer(serializers.ModelSerializer):

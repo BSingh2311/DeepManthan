@@ -7,6 +7,8 @@ from django.db import transaction
 from rest_framework.parsers import JSONParser
 from ..Serializer.S_RoleAccess import *
 from ..models import *
+from ..Serializer.S_Orders import *
+from ..Views.V_CommFunction import *
 
 
 def GetRelatedPageID(id):
@@ -63,9 +65,6 @@ class RoleAccessView(RetrieveAPIView):
                 roles.append(a['id'])
             y=tuple(roles)
 
-            
-        
-
         if (int(PartyID) > 0)  :
        
             modules= M_RoleAccess.objects.filter(Division=PartyID ,Company=CompanyID, Role_id__in=y).values('Modules_id').distinct() 
@@ -85,8 +84,6 @@ class RoleAccessView(RetrieveAPIView):
             Modulesdata = H_Modules.objects.get(id=id)
             Modules_Serializer = H_ModulesSerializer(Modulesdata).data
              
-
-    
             if (int(PartyID) > 0)  :
 
                 query=M_RoleAccess.objects.all().filter(Role_id__in=y,Modules_id=id,Division_id=PartyID,Company=CompanyID,).select_related('Pages').order_by('Pages__DisplayIndex')
@@ -145,6 +142,7 @@ class RoleAccessView(RetrieveAPIView):
             "Message": " ",
             "Data": Moduledata,
         }
+        # log_entry = create_transaction_logNew(request, {'RoleAccessID':id},CompanyID, "Role Access",127,0,0,0,PartyID)
         return Response(response)
 
     # Role Access POST Method first delete record on role,company,division and then Insert data
@@ -155,18 +153,23 @@ class RoleAccessView(RetrieveAPIView):
             with transaction.atomic():
                 RoleAccessdata = JSONParser().parse(request)
                 
-                
                 RoleAccessSerialize_data = M_RoleAccessSerializer(
                     data=RoleAccessdata, many=True)
+               
                 if RoleAccessSerialize_data.is_valid():
                     # return JsonResponse({'Data':RoleAccessSerialize_data.data[0]['Role']})
                     RoleAccessdata = M_RoleAccess.objects.filter(Role=RoleAccessSerialize_data.data[0]['Role']).filter(
                         Company=RoleAccessSerialize_data.data[0]['Company']).filter(Division=RoleAccessSerialize_data.data[0]['Division'])
                     RoleAccessdata.delete()
                     RoleAccessSerialize_data.save()
+                    Party=RoleAccessSerialize_data.data[0]['Company']
+
+                    # log_entry = create_transaction_logNew(request, {'RoleAccessDetails':RoleAccessSerialize_data},Party, "Role Access Save Successfully",128,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Role Access Save Successfully', 'Data': []})
+                # log_entry = create_transaction_logNew(request, {'RoleAccessDetails':RoleAccessSerialize_data},0, RoleAccessSerialize_data.errors,34,0)
                 return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': RoleAccessSerialize_data.errors, 'Data': []})
         except Exception as e :
+            # log_entry = create_transaction_logNew(request, {'RoleAccessDetails':RoleAccessSerialize_data},0, e,33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':   e, 'Data': []})
 
 
@@ -199,13 +202,16 @@ class RoleAccessViewList(RetrieveAPIView):
 
                 
                 if not query:
+                    # log_entry = create_transaction_logNew(request, Logindata,CompanyID, 'Data Not Found',7,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Records Not Found', 'Data': []})
                 else:
                     M_Items_Serializer = M_RoleAccessSerializerGETList(
                         query, many=True).data
+                    # log_entry = create_transaction_logNew(request, Logindata,CompanyID, 'RoleAccess List',129,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': M_Items_Serializer})
 
         except Exception as e :
+            # log_entry = create_transaction_logNew(request, Logindata,0, e,33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  e, 'Data': []})
 
 
@@ -216,9 +222,9 @@ class RoleAccessViewNewUpdated(RetrieveAPIView):
 
     def get(self, request,Role=0,Division=0 ,Company=0):
         if int(Division) > 0:
-            roleaccessquery = M_RoleAccess.objects.raw('''SELECT M_RoleAccess.id id, H_Modules.id moduleid, H_Modules.Name ModuleName,M_Pages.id pageid,M_Pages.RelatedPageID, M_Pages.name PageName  FROM M_RoleAccess JOIN M_Pages ON M_Pages.id=M_RoleAccess.Pages_id JOIN H_Modules ON H_Modules.id=M_RoleAccess.Modules_id Join M_PageType on M_PageType.id= M_Pages.PageType  WHERE M_PageType.IsAvailableForAccess=1 AND Role_id=%s AND Division_id=%s AND Company_id=%s Order By M_Pages.name ''',([Role],[Division],[Company]))
+            roleaccessquery = M_RoleAccess.objects.raw('''SELECT M_RoleAccess.id id, H_Modules.id moduleid, H_Modules.Name ModuleName,M_Pages.id pageid,M_Pages.RelatedPageID, M_Pages.name PageName,M_Pages.PageType  FROM M_RoleAccess JOIN M_Pages ON M_Pages.id=M_RoleAccess.Pages_id JOIN H_Modules ON H_Modules.id=M_RoleAccess.Modules_id Join M_PageType on M_PageType.id= M_Pages.PageType  WHERE M_PageType.IsAvailableForAccess=1 AND Role_id=%s AND Division_id=%s AND Company_id=%s Order By M_Pages.name ''',([Role],[Division],[Company]))
         else:
-            roleaccessquery = M_RoleAccess.objects.raw('''SELECT M_RoleAccess.id id, H_Modules.id moduleid, H_Modules.Name ModuleName,M_Pages.id pageid,M_Pages.RelatedPageID, M_Pages.name PageName  FROM M_RoleAccess JOIN M_Pages ON M_Pages.id=M_RoleAccess.Pages_id JOIN H_Modules ON H_Modules.id=M_RoleAccess.Modules_id Join M_PageType on M_PageType.id= M_Pages.PageType  WHERE M_PageType.IsAvailableForAccess=1 AND Role_id=%s AND Division_id is null AND Company_id=%s Order By M_Pages.name   ''',([Role],[Company]))            
+            roleaccessquery = M_RoleAccess.objects.raw('''SELECT M_RoleAccess.id id, H_Modules.id moduleid, H_Modules.Name ModuleName,M_Pages.id pageid,M_Pages.RelatedPageID, M_Pages.name PageName,M_Pages.PageType  FROM M_RoleAccess JOIN M_Pages ON M_Pages.id=M_RoleAccess.Pages_id JOIN H_Modules ON H_Modules.id=M_RoleAccess.Modules_id Join M_PageType on M_PageType.id= M_Pages.PageType  WHERE M_PageType.IsAvailableForAccess=1 AND Role_id=%s AND Division_id is null AND Company_id=%s Order By M_Pages.name   ''',([Role],[Company]))            
         # return JsonResponse({'query':  str(roleaccessquery.query)})
         RoleAccessdata = M_RoleAccessSerializerNewUpdated(roleaccessquery, many=True).data
         # return JsonResponse({'data':  RoleAccessdata})
@@ -268,6 +274,7 @@ class RoleAccessViewNewUpdated(RetrieveAPIView):
                 "PageID": a['pageid'],
                 "RelatedPageID": a['RelatedPageID'],
                 "PageName": a['PageName'],
+                "PageType" : a['PageType'],
                 "RoleAccess_IsShowOnMenuForMaster": RolePageAccessSerializer[0]['id'],
                 "RoleAccess_IsShowOnMenuForList": RolePageAccessSerializerforListPAge[0]['id'],
                 "RoleAccess_IsSave": RolePageAccessSerializer[1]['id'],
@@ -304,6 +311,7 @@ class RoleAccessViewNewUpdated(RetrieveAPIView):
             "Message": " ",
             "Data": Moduledata,
         }
+        # log_entry = create_transaction_logNew(request, 0,Company,"RoleAccessNewUpdated",130,0)
         return Response(response)
     
     @transaction.atomic()
@@ -318,8 +326,10 @@ class RoleAccessViewNewUpdated(RetrieveAPIView):
                     RoleAccessID = a['id']
                     RoleAccessDeletedata = M_RoleAccess.objects.get(id=RoleAccessID)
                     RoleAccessDeletedata.delete()
+                # log_entry = create_transaction_logNew(request,0,Company,"RoleAccess Deleted Successfully",131,0)
                 return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'RoleAccess Deleted Successfully','Data':[]}) 
         except Exception as e:
+            # log_entry = create_transaction_logNew(request, 0,0,Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]}) 
 
 class RoleAccessViewAddPage(RetrieveAPIView):
@@ -328,7 +338,7 @@ class RoleAccessViewAddPage(RetrieveAPIView):
     # authentication_class = JSONWebTokenAuthentication
 
     def get(self, request, pageid=0):
-        roleaccessquery = M_Pages.objects.raw('''SELECT H_Modules.id moduleid, H_Modules.Name ModuleName,M_Pages.id id,M_Pages.RelatedPageID, M_Pages.name PageName FROM M_Pages JOIN H_Modules ON H_Modules.id=M_Pages.Module_id WHERE M_Pages.id=%s''',[pageid])
+        roleaccessquery = M_Pages.objects.raw('''SELECT H_Modules.id moduleid, H_Modules.Name ModuleName,M_Pages.id id,M_Pages.RelatedPageID, M_Pages.name PageName ,M_Pages.PageType FROM M_Pages JOIN H_Modules ON H_Modules.id=M_Pages.Module_id WHERE M_Pages.id=%s''',[pageid])
         # return JsonResponse({'query':  str(roleaccessquery.query)})
         RoleAccessdata = M_PageSerializerAddPage(roleaccessquery, many=True).data
         # return JsonResponse({'data':  RoleAccessdata})
@@ -343,6 +353,7 @@ class RoleAccessViewAddPage(RetrieveAPIView):
                 "PageID": a['id'],
                 "RelatedPageID": a['RelatedPageID'],
                 "PageName": a['PageName'],
+                "PageType" : a['PageType'],
                 "RoleAccess_IsShowOnMenu": 0,
                 "RoleAccess_IsSave": 0,
                 "RoleAccess_IsView": 0,
@@ -356,6 +367,8 @@ class RoleAccessViewAddPage(RetrieveAPIView):
                 "RoleAccess_Exceldownload": 0,
                 "RoleAccess_IsCopy": 0,
                 "RoleAccess_IsMultipleInvoicePrint":0,
+                "RoleAccess_IsShowOnMenuForList":0,
+                "RoleAccess_IsShowOnMenuForMaster":0,
                 "PageAccess_IsShowOnMenu": PageAccessSerializer[0]['id'],
                 "PageAccess_IsSave": PageAccessSerializer[1]['id'],
                 "PageAccess_IsView": PageAccessSerializer[2]['id'],
@@ -378,6 +391,7 @@ class RoleAccessViewAddPage(RetrieveAPIView):
             "Message": " ",
             "Data": Moduledata,
         }
+        # log_entry = create_transaction_logNew(request, {'RoleAccessID':a['id']},0,"RoleAccessAddPage",132,0)
         return Response(response)    
 
 class RoleAccessGetPagesOnModule(RetrieveAPIView):
@@ -396,12 +410,15 @@ class RoleAccessGetPagesOnModule(RetrieveAPIView):
                     query = M_Pages.objects.raw('''Select M_Pages.id,M_Pages.Name FROM M_Pages join M_PageType on M_PageType.id= M_Pages.PageType  WHERE M_PageType.IsAvailableForAccess=1  and M_Pages.IsDivisionRequired=0 and Module_id=%s''',[moduleid])      
                    
                 if not query:
+                    # log_entry = create_transaction_logNew(request,0,0,"Data Not Found",7,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Records Not Found', 'Data': []})
                 else:
                     PageSerializer = M_PageSerializerNewUpdated(
                         query, many=True).data
+                    # log_entry = create_transaction_logNew(request,0,0,"RoleAccessGetPagesOnModule",133,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': PageSerializer})
         except Exception  :
+            # log_entry = create_transaction_logNew(request, 0,0,"Execution Error",135,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  'Execution Error', 'Data': []})
         
       
@@ -440,11 +457,15 @@ class CopyRoleAccessView(CreateAPIView):
                         # return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  '0', 'Data':str(RoleAccessdata.query)}) 
                         RoleAccessdata.delete()
                         RoleAccessSerialize_data.save()
-                    
+
+                        # log_entry = create_transaction_logNew(request, 0,NewDivision,"Copy Role Access Save Successfully",134,0)
                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Copy Role Access Save Successfully', 'Data': []})
+                    # log_entry = create_transaction_logNew(request, 0,0,RoleAccessSerialize_data.errors,34,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': RoleAccessSerialize_data.errors, 'Data': []})
+                # log_entry = create_transaction_logNew(request, 0,0,"Execution Error",135,0)
                 return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': 'Execution Error', 'Data': []})
         except Exception :
+            # log_entry = create_transaction_logNew(request, 0,0,"Execution Error",135,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':   'Execution Error', 'Data': []})
         
 

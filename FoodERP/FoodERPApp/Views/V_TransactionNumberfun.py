@@ -101,6 +101,11 @@ class GetMaxNumber:
     def GetInvoiceNumber(*args):
         
         MaxInvoiceNumber=T_Invoices.objects.filter(Party_id=args[0]).values('InvoiceNumber').order_by('-id')[:1]
+        max_number = T_DeletedInvoices.objects.filter(Party=args[0]).aggregate(max_number=Max('InvoiceNumber'))['max_number']
+        
+        # print(MaxInvoiceNumber)
+        # print(max_number)
+        
         firstdatefinancial = date.today().strftime('%Y-04-01')
         b=args[1]
         if(not MaxInvoiceNumber):
@@ -108,9 +113,17 @@ class GetMaxNumber:
         else:
             if(b==firstdatefinancial):
                 a = 1
-            else:    
-                a=int(MaxInvoiceNumber[0]['InvoiceNumber'])
-                a=a+1
+            else:
+                if (not max_number):
+                    a=int(MaxInvoiceNumber[0]['InvoiceNumber'])
+                    a=a+1
+                else:
+                    if(int(MaxInvoiceNumber[0]['InvoiceNumber']) > (int(max_number))):
+                        a=int(MaxInvoiceNumber[0]['InvoiceNumber'])
+                        a=a+1
+                    else:
+                        a=int(max_number)
+                        a=a+1
         return a
 
     def GetIBChallanNumber(*args):
@@ -304,7 +317,7 @@ class GetPrifix:
     
     def GetCRDRPrifix(*args):
        
-        if (args[1]==37):
+        if (args[1]==37 or args[1]==39 ):
             Prifix=MC_PartyPrefixs.objects.filter(Party_id=args[0]).values('Creditprefix')
         else:
             Prifix=MC_PartyPrefixs.objects.filter(Party_id=args[0]).values('Debitprefix')
@@ -312,7 +325,7 @@ class GetPrifix:
         if not Prifix :
             a=""
         else:
-            if (args[1]==37):
+            if (args[1]==37 or args[1]==39):
                 a=Prifix[0]['Creditprefix']
             else:
                 a=Prifix[0]['Debitprefix']               

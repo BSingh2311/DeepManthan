@@ -646,6 +646,7 @@ class M_Items(models.Model):
     Height = models.CharField(max_length=200,null=True,blank=True)
     Length = models.CharField(max_length=200,null=True,blank=True)
     StoringCondition = models.CharField(max_length=200,null=True,blank=True)
+    Budget = models.DecimalField(max_digits=20, decimal_places=2,null=True,blank=True)
     class Meta:
         db_table = "M_Items"
         
@@ -909,7 +910,7 @@ class T_Invoices(models.Model):
     Vehicle = models.ForeignKey(M_Vehicles, related_name='InvoiceVehicle',on_delete=models.PROTECT,null=True,blank=True)
     TCSAmount = models.DecimalField(max_digits=20, decimal_places=2)
     # Hide Flag is temporary 
-    Hide = models.CharField(max_length=500,default=0) 
+    Hide = models.BooleanField(default=False)
 
     class Meta:
         db_table = "T_Invoices"
@@ -1478,6 +1479,22 @@ class TC_PurchaseReturnItems(models.Model):
     Discount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
     DiscountAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
     BatchID = models.CharField(max_length=500,null=True,blank=True) # O_BatchwiseLiveStock ID
+    primarySourceID =models.IntegerField(blank=True, null=True)
+    ApprovedByCompany=models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    FinalApprovalDate=models.DateField(null=True)
+    ApprovedRate = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ApprovedBasicAmount = models.DecimalField(max_digits=30, decimal_places=2,blank=True, null=True)
+    ApprovedGSTPercentage = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
+    ApprovedGSTAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ApprovedAmount = models.DecimalField(max_digits=30, decimal_places=2,blank=True, null=True)
+    ApprovedCGST = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ApprovedSGST = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ApprovedIGST = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ApprovedCGSTPercentage = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ApprovedSGSTPercentage = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ApprovedIGSTPercentage = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ApprovedDiscountAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+
     
     class Meta:
         db_table = "TC_PurchaseReturnItems"
@@ -1485,7 +1502,7 @@ class TC_PurchaseReturnItems(models.Model):
 class TC_PurchaseReturnItemImages(models.Model):
     Item_pic = models.TextField(null=True,blank=True)
     PurchaseReturnItem = models.ForeignKey(TC_PurchaseReturnItems, related_name='ReturnItemImages', on_delete=models.CASCADE,null=True,blank=True)
-
+    Image = models.ImageField(upload_to="Images\ReturnImages",default="",null=True,blank=True)
     class Meta:
         db_table = "TC_PurchaseReturnItemImages"
         
@@ -1596,12 +1613,12 @@ class T_CreditDebitNotes(models.Model):
     UpdatedBy = models.IntegerField()
     UpdatedOn = models.DateTimeField(auto_now=True)
     Customer = models.ForeignKey(M_Parties,related_name='NoteCustomer',on_delete=models.PROTECT)
-    Invoice = models.ForeignKey(T_Invoices,related_name='Invoice', on_delete=models.PROTECT,blank=True, null=True)
     NoteReason = models.ForeignKey(M_GeneralMaster,related_name='NoteReason', on_delete=models.PROTECT,blank=True, null=True)
     NoteType = models.ForeignKey(M_GeneralMaster,on_delete=models.PROTECT,blank=True, null=True)
     Party = models.ForeignKey(M_Parties,related_name='NoteParty', on_delete=models.PROTECT)
     PurchaseReturn = models.ForeignKey(T_PurchaseReturn,on_delete=models.PROTECT,blank=True, null=True)
     Receipt = models.ForeignKey(T_Receipts,on_delete=models.PROTECT,blank=True, null=True)
+    IsDeleted = models.BooleanField(default=False)
  
     class Meta:
         db_table = "T_CreditDebitNotes"
@@ -1628,9 +1645,41 @@ class TC_CreditDebitNoteItems(models.Model):
     Item = models.ForeignKey(M_Items, on_delete=models.PROTECT)
     MRP = models.ForeignKey(M_MRPMaster, related_name='CRDRMRP', on_delete=models.PROTECT,null=True,blank=True)
     Unit = models.ForeignKey(MC_ItemUnits, related_name='CRDRUnit', on_delete=models.PROTECT)
+    GSTPercentage = models.DecimalField(max_digits=20, decimal_places=2,null=True,blank=True)
+    MRPValue =  models.DecimalField(max_digits=20, decimal_places=2,null=True,blank=True)
+    DiscountType = models.CharField(max_length=500,blank=True, null=True)
+    Discount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    DiscountAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    QtyInNo = models.DecimalField(max_digits=30, decimal_places=20,null=True,blank=True)
+    QtyInKg = models.DecimalField(max_digits=30, decimal_places=20,null=True,blank=True)
+    QtyInBox = models.DecimalField(max_digits=30, decimal_places=20,null=True,blank=True)
+    ItemComment = models.CharField(max_length=500,null=True,blank=True)
 
     class Meta:
-        db_table = "TC_CreditDebitNoteItems"  
+        db_table = "TC_CreditDebitNoteItems" 
+
+class TC_CreditDebitNoteUploads(models.Model):
+    CRDRNote = models.ForeignKey(T_CreditDebitNotes,related_name='CRDRNoteUploads',on_delete=models.CASCADE,null=True,blank=True)
+    AckNo =  models.CharField(max_length=500,null=True)  
+    Irn =  models.CharField(max_length=500,null=True)
+    QRCodeUrl =models.CharField(max_length=500,null=True)
+    EInvoicePdf = models.CharField(max_length=500,null=True)
+    EwayBillNo = models.CharField(max_length=500,null=True)
+    EwayBillUrl = models.CharField(max_length=500,null=True)
+    EInvoiceCreatedBy = models.IntegerField(null=True)
+    EInvoiceCreatedOn = models.DateTimeField(null=True)
+    EwayBillCreatedBy = models.IntegerField(null=True)
+    EwayBillCreatedOn = models.DateTimeField(null=True)
+    EInvoiceCanceledBy = models.IntegerField(null=True)
+    EInvoiceCanceledOn = models.DateTimeField(null=True)
+    EwayBillCanceledBy = models.IntegerField(null=True)
+    EwayBillCanceledOn = models.DateTimeField(null=True)
+    EInvoiceIsCancel = models.BooleanField(default=False)
+    EwayBillIsCancel = models.BooleanField(default=False)
+    user_gstin = models.CharField(max_length=500)   
+
+    class Meta:
+        db_table = "TC_CreditDebitNoteUploads"        
 
 
 class TC_ReceiptInvoices(models.Model):
@@ -1781,6 +1830,11 @@ class MC_SettingDependency(models.Model):
   
     class Meta:
         db_table="MC_SettingDependency"
+
+class M_TransactionType(models.Model):
+    Name = models.CharField(max_length=500) 
+    class Meta:
+        db_table="M_TransactionType"           
         
  
 class Transactionlog(models.Model):
@@ -1791,12 +1845,17 @@ class Transactionlog(models.Model):
     PartyID = models.IntegerField()
     TransactionDetails =  models.CharField(max_length=500)
     JsonData = models.TextField(blank = True)
+    TransactionType =  models.IntegerField(default=1)
+    TransactionID =  models.IntegerField(default=1)
+    FromDate = models.DateField(blank=True, null=True)
+    ToDate = models.DateField(blank=True, null=True)
+    CustomerID = models.IntegerField(default=1)
     
     class Meta:
         db_table="Transactionlog"     
         
 class TC_InvoiceUploads(models.Model):
-    Invoice = models.ForeignKey(T_Invoices,related_name='InvoiceUploads', on_delete=models.PROTECT) 
+    Invoice = models.ForeignKey(T_Invoices,related_name='InvoiceUploads', on_delete=models.CASCADE) 
     AckNo =  models.CharField(max_length=500,null=True)  
     Irn =  models.CharField(max_length=500,null=True)
     QRCodeUrl =models.CharField(max_length=500,null=True)
@@ -1868,22 +1927,40 @@ class M_DiscountMaster(models.Model):
     Customer =  models.ForeignKey(M_Parties, related_name='DiscountCustomer', on_delete=models.PROTECT,blank=True, null=True)
     Party = models.ForeignKey(M_Parties, related_name='DiscountParty', on_delete=models.PROTECT)
     Item = models.ForeignKey(M_Items,related_name='DiscountItem', on_delete=models.PROTECT)
+    IsDeleted = models.BooleanField(default=False)
+    
 
     class Meta:
         db_table="M_DiscountMaster"
         
-class M_MasterClaim(models.Model):
+class M_Claim(models.Model):
+    Date=models.DateField()
     FromDate=models.DateField()
     ToDate=models.DateField()
-    PrimaryAmount = models.DecimalField(max_digits=20, decimal_places=2)
-    SecondaryAmount = models.DecimalField(max_digits=20, decimal_places=2)
-    ReturnAmount = models.DecimalField(max_digits=20, decimal_places=2)
-    NetSaleValue = models.DecimalField(max_digits=20, decimal_places=2)
-    Budget = models.DecimalField(max_digits=20, decimal_places=2)
-    ClaimAmount = models.DecimalField(max_digits=20, decimal_places=2)
-    ClaimAgainstNetSale = models.DecimalField(max_digits=20, decimal_places=2)
-    Item = models.ForeignKey(M_Items,related_name='ClaimItem', on_delete=models.PROTECT)
     Customer =  models.ForeignKey(M_Parties, related_name='ClaimCustomer', on_delete=models.PROTECT,blank=True, null=True)
+    Party = models.ForeignKey(M_Parties, related_name='ClaimPParty', on_delete=models.PROTECT)
+    CreatedBy = models.IntegerField()
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    PrimaryAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    SecondaryAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ReturnAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+
+    class Meta:
+        db_table="M_Claim"
+
+class M_MasterClaim(models.Model):
+    Claim = models.ForeignKey(M_Claim,related_name='Claim', on_delete=models.CASCADE ) 
+    FromDate=models.DateField()
+    ToDate=models.DateField()
+    PrimaryAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    SecondaryAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ReturnAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    NetSaleValue = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    Budget = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ClaimAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    ClaimAgainstNetSale = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    Item = models.ForeignKey(M_Items,related_name='ClaimItem', on_delete=models.PROTECT)
+    # Customer =  models.ForeignKey(M_Parties, related_name='ClaimCustomer', on_delete=models.PROTECT,blank=True, null=True)
     Party = models.ForeignKey(M_Parties, related_name='ClaimParty', on_delete=models.PROTECT)
     CreatedBy = models.IntegerField()
     CreatedOn = models.DateTimeField(auto_now_add=True)
@@ -1892,6 +1969,7 @@ class M_MasterClaim(models.Model):
         db_table="M_MasterClaim"
 
 class MC_ReturnReasonwiseMasterClaim(models.Model):
+    Claim = models.ForeignKey(M_Claim,related_name='RClaim', on_delete=models.CASCADE) 
     FromDate=models.DateField()
     ToDate=models.DateField()
     PrimaryAmount = models.DecimalField(max_digits=20, decimal_places=2)
@@ -1911,21 +1989,6 @@ class MC_ReturnReasonwiseMasterClaim(models.Model):
         db_table="MC_ReturnReasonwiseMasterClaim"
 
 
-class MC_MasterClaimDetails(models.Model):
-    
-    ReturnAmount = models.DecimalField(max_digits=20, decimal_places=2)
-    NetSaleValue = models.DecimalField(max_digits=20, decimal_places=2)
-    Budget = models.DecimalField(max_digits=20, decimal_places=2)
-    ClaimAmount = models.DecimalField(max_digits=20, decimal_places=2)
-    ClaimAgainstNetSale = models.DecimalField(max_digits=20, decimal_places=2)
-    MasterClaim = models.ForeignKey(M_MasterClaim,related_name='MasterClaim', on_delete=models.PROTECT)
-    Item = models.ForeignKey(M_Items,related_name='ClaimmItem', on_delete=models.PROTECT)
-    ItemReason = models.ForeignKey(M_GeneralMaster,related_name= "ClaimItemReason",on_delete=models.PROTECT)
-    PrimaryAmount = models.DecimalField(max_digits=20, decimal_places=2)
-    SecondaryAmount = models.DecimalField(max_digits=20, decimal_places=2)
-    
-    class Meta:
-        db_table="MC_MasterClaimDetails"
 
 
 class ThirdPartyAPITransactionlog(models.Model):
@@ -1939,7 +2002,112 @@ class ThirdPartyAPITransactionlog(models.Model):
     ThirdParytSource =  models.CharField(max_length=500)
     
     class Meta:
-        db_table="ThirdPartyAPITransactionlog"                
+        db_table="ThirdPartyAPITransactionlog"
+        
+class T_DeletedInvoices(models.Model):
+    Invoice = models.IntegerField(null=True)
+    InvoiceDate = models.DateField()
+    InvoiceNumber = models.IntegerField(null=True)
+    FullInvoiceNumber = models.CharField(max_length=500)
+    GrandTotal = models.DecimalField(max_digits=20, decimal_places=2)
+    RoundOffAmount = models.DecimalField(max_digits=15, decimal_places=2)
+    CreatedBy = models.IntegerField(null=True)
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField(null=True)
+    UpdatedOn = models.DateTimeField()
+    Customer = models.IntegerField(null=True)
+    Driver = models.IntegerField(null=True)
+    Party = models.IntegerField(null=True)
+    Vehicle = models.IntegerField(null=True)
+    TCSAmount = models.DecimalField(max_digits=20, decimal_places=2)
+
+    Hide = models.BooleanField()
+    DeletedOn = models.DateTimeField(auto_now_add=True) 
+
+    class Meta:
+        db_table = "T_DeletedInvoices"        
+        
+
+class TC_DeletedInvoiceItems(models.Model):
+    Quantity = models.DecimalField(max_digits=20, decimal_places=3)
+    BaseUnitQuantity = models.DecimalField(max_digits=20, decimal_places=3)
+    MRPValue =  models.DecimalField(max_digits=20, decimal_places=2,null=True,blank=True)
+    Rate = models.DecimalField(max_digits=20, decimal_places=2)
+    BasicAmount = models.DecimalField(max_digits=20, decimal_places=2)
+    TaxType = models.CharField(max_length=500)
+    GSTPercentage = models.DecimalField(max_digits=20, decimal_places=2)
+    GSTAmount = models.DecimalField(max_digits=20, decimal_places=2)
+    Amount = models.DecimalField(max_digits=20, decimal_places=2)
+    DiscountType = models.CharField(max_length=500,blank=True, null=True)
+    Discount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    DiscountAmount = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)
+    CGST = models.DecimalField(max_digits=20, decimal_places=2)
+    SGST = models.DecimalField(max_digits=20, decimal_places=2)
+    IGST = models.DecimalField(max_digits=20, decimal_places=2)
+    CGSTPercentage = models.DecimalField(max_digits=20, decimal_places=2)
+    SGSTPercentage = models.DecimalField(max_digits=20, decimal_places=2)
+    IGSTPercentage = models.DecimalField(max_digits=20, decimal_places=2)
+    BatchDate = models.DateField(blank=True, null=True)
+    BatchCode = models.CharField(max_length=500)
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    GST = models.IntegerField(null=True)
+    Invoice = models.IntegerField(null=True)
+    Item = models.IntegerField(null=True)
+    LiveBatch= models.IntegerField(null=True)
+    MRP = models.IntegerField(null=True)
+    Unit = models.IntegerField(null=True)
+    QtyInNo = models.DecimalField(max_digits=30, decimal_places=20)
+    QtyInKg = models.DecimalField(max_digits=30, decimal_places=20)
+    QtyInBox = models.DecimalField(max_digits=30, decimal_places=20)
+
+    class Meta:
+        db_table = "TC_DeletedInvoiceItems"
+        
+        
+class TC_DeletedInvoiceUploads(models.Model):
+    Invoice = models.IntegerField(null=True)
+    AckNo =  models.CharField(max_length=500,null=True)  
+    Irn =  models.CharField(max_length=500,null=True)
+    QRCodeUrl =models.CharField(max_length=500,null=True)
+    EInvoicePdf = models.CharField(max_length=500,null=True)
+    EwayBillNo = models.CharField(max_length=500,null=True)
+    EwayBillUrl = models.CharField(max_length=500,null=True)
+    EInvoiceCreatedBy = models.IntegerField(null=True)
+    EInvoiceCreatedOn = models.DateTimeField(null=True)
+    EwayBillCreatedBy = models.IntegerField(null=True)
+    EwayBillCreatedOn = models.DateTimeField(null=True)
+    EInvoiceCanceledBy = models.IntegerField(null=True)
+    EInvoiceCanceledOn = models.DateTimeField(null=True)
+    EwayBillCanceledBy = models.IntegerField(null=True)
+    EwayBillCanceledOn = models.DateTimeField(null=True)
+    EInvoiceIsCancel = models.BooleanField(default=False)
+    EwayBillIsCancel = models.BooleanField(default=False)
+    user_gstin = models.CharField(max_length=500)  
+    
+    class Meta:
+        db_table="TC_DeletedInvoiceUploads"  
+        
+         
+class TC_DeletedInvoicesReferences(models.Model):
+    Invoice =models.IntegerField(null=True)
+    Order = models.IntegerField(null=True)
+    class Meta:
+        db_table = "TC_DeletedInvoicesReferences"
+        
+        
+        
+class M_ChannelWiseItems(models.Model):
+    Item = models.ForeignKey(M_Items,related_name='ChannelItem', on_delete=models.PROTECT)
+    PartyType =models.ForeignKey(M_PartyType, related_name='ChannelPartyType', on_delete=models.PROTECT) 
+
+
+    class Meta:
+        db_table = "M_ChannelWiseItems"        
+        
+        
+                                      
+   
+                        
          
    
        

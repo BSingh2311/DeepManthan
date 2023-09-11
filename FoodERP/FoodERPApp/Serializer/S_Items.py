@@ -202,8 +202,14 @@ class ItemSerializer(serializers.ModelSerializer):
         for e in instance.ItemDivisionDetails.all():
             e.delete()
         
-        for f in instance.ItemShelfLife.all():
-            SetFlag=MC_ItemShelfLife.objects.filter(id=f.id).update(IsDeleted=1) 
+        if not validated_data['ItemShelfLife']:
+            pass
+        else:
+            for f in instance.ItemShelfLife.all():
+                SetFlag=MC_ItemShelfLife.objects.filter(id=f.id).update(IsDeleted=1) 
+            
+            for ItemShelfLife_data in validated_data['ItemShelfLife']:
+                MItemShelfLife = MC_ItemShelfLife.objects.create(Item=instance, **ItemShelfLife_data)     
             
         # for f in instance.ItemMRPDetails.all():
         #     f.delete()  
@@ -237,8 +243,7 @@ class ItemSerializer(serializers.ModelSerializer):
         for ItemGSTHSN_data in validated_data['ItemGSTHSNDetails']:
             ItemGSTHSN = M_GSTHSNCode.objects.create(Item=instance, **ItemGSTHSN_data) 
         
-        for ItemShelfLife_data in validated_data['ItemShelfLife']:
-            MItemShelfLife = MC_ItemShelfLife.objects.create(Item=instance, **ItemShelfLife_data)       
+              
         
         return instance 
          
@@ -453,21 +458,21 @@ class ItemReportSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = M_Items
-        fields = ['id','Name', 'ShortName', 'Sequence', 'Company', 'BaseUnitID', 'BarCode','SAPItemCode', 'isActive','IsSCM', 'CanBeSold', 'CanBePurchase', 'BrandName', 'Tag', 'Length', 'Breadth','Height','StoringCondition','Grammage','CreatedBy', 'UpdatedBy','ItemGroupDetails']
+        fields = ['id','Name', 'ShortName', 'Sequence', 'Company', 'BaseUnitID', 'BarCode','SAPItemCode', 'isActive','IsSCM', 'CanBeSold', 'CanBePurchase', 'BrandName', 'Tag', 'Length', 'Breadth','Height','StoringCondition','Grammage','Budget','CreatedBy', 'UpdatedBy','ItemGroupDetails']
 
 
-class DiscountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = M_DiscountMaster
-        fields = '__all__'
+# class DiscountSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = M_DiscountMaster
+#         fields = '__all__'
 
-class DiscountItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = M_Items
-        fields = ['id','Name']
+# class DiscountItemSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = M_Items
+#         fields = ['id','Name']
 
-class DiscountSerializerSecond(serializers.ModelSerializer):
-    Item = DiscountItemSerializer()
-    class Meta:
-        model = M_DiscountMaster
-        fields = '__all__'
+# class DiscountSerializerSecond(serializers.ModelSerializer):
+#     Item = DiscountItemSerializer()
+#     class Meta:
+#         model = M_DiscountMaster
+#         fields = '__all__'

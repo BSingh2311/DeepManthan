@@ -40,9 +40,7 @@ class MC_PartyItemSerializerSingleGet(serializers.Serializer):
     PartyName=serializers.CharField(max_length=500)
     GroupTypeName=serializers.CharField(max_length=500)
     GroupName=serializers.CharField(max_length=500)
-    SubGroupName=serializers.CharField(max_length=500)
-  
-    
+    SubGroupName=serializers.CharField(max_length=500)   
      
 class MC_PartyItemListSerializer(serializers.Serializer):
     Party_id = serializers.IntegerField()
@@ -51,8 +49,31 @@ class MC_PartyItemListSerializer(serializers.Serializer):
     Total = serializers.IntegerField()
     
     
-        
+class M_ChannelWiseItemsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = M_ChannelWiseItems
+        fields = ['Item','PartyType']    
      
-        
-    
+
+class ChanelwiseItemListSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    Name=serializers.CharField(max_length=500)
+    PartyType_id = serializers.IntegerField()
+    PartyTypeName=serializers.CharField(max_length=500)
+    GroupTypeName=serializers.CharField(max_length=500)
+    GroupName=serializers.CharField(max_length=500)
+    SubGroupName=serializers.CharField(max_length=500)   
                
+
+class ChanelwiseItemSerializer(serializers.Serializer):
+    PartyType_id= serializers.IntegerField()
+    Name=serializers.CharField(max_length=500)
+    Item_id = serializers.IntegerField()
+    Total = serializers.IntegerField()
+    
+    
+    
+class CheckPartiesImChannelItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = M_Parties
+        fields = ['id','Name']  

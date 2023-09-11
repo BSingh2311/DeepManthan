@@ -7,7 +7,7 @@ from rest_framework.parsers import JSONParser
 
 from ..Serializer.S_Parties import M_PartiesSerializerSecond
 
-from ..Views.V_CommFunction import GetOpeningBalance, UnitwiseQuantityConversion
+from ..Views.V_CommFunction import GetOpeningBalance, UnitwiseQuantityConversion,RateCalculationFunction
 from ..Serializer.S_Invoices import InvoiceSerializerSecond
 
 from ..Serializer.S_Reports import *
@@ -197,11 +197,11 @@ FROM
                 ELSE 4
             END) AS Flag,
             (CASE
-                WHEN T_CreditDebitNotes.NoteType_id = 38 THEN T_CreditDebitNotes.GrandTotal
+                WHEN T_CreditDebitNotes.NoteType_id = 38  OR T_CreditDebitNotes.NoteType_id =40 THEN T_CreditDebitNotes.GrandTotal
                 ELSE 0
             END) AS DebitNote,
             (CASE
-                WHEN T_CreditDebitNotes.NoteType_id = 38 THEN 0
+                WHEN T_CreditDebitNotes.NoteType_id = 38 OR T_CreditDebitNotes.NoteType_id =40 THEN 0
                 ELSE T_CreditDebitNotes.GrandTotal
             END) CreditNote,
             0 AS BasicAmount,
@@ -219,7 +219,7 @@ FROM
             AND Party_id = %s
             AND Customer_id = %s) q
 ORDER BY InvoiceDate , Flag , BillNo ''', [FromDate, ToDate, Party, Customer, FromDate, ToDate, Party, Customer, FromDate, ToDate, Party, Customer])
-
+                # print(str(query.query))
                 if not query:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not Found', 'Data': []})
                 else:
@@ -337,6 +337,7 @@ ORDER BY InvoiceDate , Flag , BillNo ''', [FromDate, ToDate, Party, Customer, Fr
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
 
+
 class GenericSaleView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
 
@@ -347,67 +348,17 @@ class GenericSaleView(CreateAPIView):
                 FromDate = Genericdata['FromDate']
                 ToDate = Genericdata['ToDate']
                 Party = Genericdata['Party']
-
-                Genericdataquery = T_Invoices.objects.filter(InvoiceDate__range=[FromDate, ToDate],Party=Party).select_related()
-                # print(Genericdataquery.query)
+                Party_list = Party.split(",")
+                
+        
+                Genericdataquery = T_Invoices.objects.raw('''SELECT TC_InvoiceItems.id,T_Invoices.Party_id AS PartyID,A.Name PartyName,T_Invoices.FullInvoiceNumber,T_Invoices.InvoiceDate,T_Invoices.Customer_id AS CustomerID,B.Name CustomerName,M_Drivers.Name DriverName,M_Vehicles.VehicleNumber VehicleNo,TC_InvoiceItems.Item_id AS ItemID,M_Items.Name ItemName,C_Companies.Name CompanyName,M_GSTHSNCode.HSNCode,TC_InvoiceItems.MRPValue AS MRP,TC_InvoiceItems.QtyInNo,TC_InvoiceItems.QtyInKg,TC_InvoiceItems.QtyInBox,TC_InvoiceItems.Rate AS BasicRate,(TC_InvoiceItems.Rate + ((TC_InvoiceItems.Rate * TC_InvoiceItems.GSTPercentage) / 100)) WithGSTRate,M_Units.Name AS UnitName,TC_InvoiceItems.DiscountType,TC_InvoiceItems.Discount,TC_InvoiceItems.DiscountAmount,TC_InvoiceItems.BasicAmount AS TaxableValue,TC_InvoiceItems.CGST,TC_InvoiceItems.CGSTPercentage,TC_InvoiceItems.SGST,TC_InvoiceItems.SGSTPercentage,TC_InvoiceItems.IGST,TC_InvoiceItems.IGSTPercentage,TC_InvoiceItems.GSTPercentage,TC_InvoiceItems.GSTAmount,TC_InvoiceItems.Amount AS TotalValue,T_Orders.FullOrderNumber,T_Orders.OrderDate,T_Invoices.TCSAmount,T_Invoices.RoundOffAmount,T_Invoices.GrandTotal FROM TC_InvoiceItems JOIN T_Invoices ON T_Invoices.id = TC_InvoiceItems.Invoice_id JOIN TC_InvoicesReferences ON TC_InvoicesReferences.Invoice_id = T_Invoices.id JOIN T_Orders ON T_Orders.id = TC_InvoicesReferences.Order_id JOIN M_Parties A ON A.id = T_Invoices.Party_id JOIN M_Parties B ON B.id = T_Invoices.Customer_id JOIN M_Items ON M_Items.id = TC_InvoiceItems.Item_id JOIN C_Companies ON C_Companies.id = M_Items.Company_id JOIN M_GSTHSNCode ON M_GSTHSNCode.id = TC_InvoiceItems.GST_id JOIN MC_ItemUnits ON MC_ItemUnits.id = TC_InvoiceItems.Unit_id JOIN M_Units ON M_Units.id = MC_ItemUnits.UnitID_id JOIN MC_PartySubParty ON MC_PartySubParty.SubParty_id = T_Invoices.Customer_id AND MC_PartySubParty.Party_id IN %s LEFT JOIN M_Drivers ON M_Drivers.id = T_Invoices.Driver_id LEFT JOIN M_Vehicles ON M_Vehicles.id = T_Invoices.Vehicle_id WHERE T_Invoices.InvoiceDate BETWEEN %s AND %s AND T_Invoices.Party_id IN %s''',([Party_list,FromDate,ToDate,Party_list]))
                 if Genericdataquery:
-                    Invoice_serializer = InvoiceSerializerSecond(
-                        Genericdataquery, many=True).data
-                    InvoiceListData = list()
-                    for a in Invoice_serializer:
-                        for b in a['InvoiceItems']:
-                            InvoiceListData.append({
-                                "id": a['id'],
-                                "InvoiceDate": a['InvoiceDate'],
-                                "FullInvoiceNumber": a['FullInvoiceNumber'],
-                                "CustomerID": a['Customer']['id'],
-                                "Customer": a['Customer']['Name'],
-                                "PartyID": a['Party']['id'],
-                                "Party": a['Party']['Name'],
-                                "GrandTotal": float(a['GrandTotal']),
-                                "RoundOffAmount": float(a['RoundOffAmount']),
-                                "DriverName": a['Driver']['Name'],
-                                "VehicleNo": a['Vehicle']['VehicleNumber'],
-                                "Party": a['Party']['Name'],
-                                "CreatedOn": a['CreatedOn'],
-                                "Item": b['Item']['id'],
-                                "ItemName": b['Item']['Name'],
-                                "Quantity": float(b['Quantity']),
-                                "MRP": b['MRP']['id'],
-                                "MRPValue": float(b['MRPValue']),
-                                "Rate": float(b['Rate']),
-                                "TaxType": b['TaxType'],
-                                "PrimaryUnitName": b['Unit']['UnitID']['Name'],
-                                "UnitName": b['Unit']['UnitID']['Name'],
-                                "BaseUnitQuantity": float(b['BaseUnitQuantity']),
-                                "GST": b['GST']['id'],
-                                "GSTPercentage": float(b['GSTPercentage']),
-                                "MarginValue": b['Margin']['Margin'],
-                                "BasicAmount": float(b['BasicAmount']),
-                                "GSTAmount": float(b['GSTAmount']) ,
-                                "CGST": float(b['CGST']),
-                                "SGST": float(b['SGST']),
-                                "IGST": float(b['IGST']),
-                                "CGSTPercentage": float(b['CGSTPercentage']),
-                                "SGSTPercentage": float(b['SGSTPercentage']),
-                                "IGSTPercentage": float(b['IGSTPercentage']),
-                                "Amount":float(b['Amount']),
-                                "BatchCode": b['BatchCode'],
-                                "BatchDate": b['BatchDate'],
-                                "HSNCode": b['GST']['HSNCode'],
-                                "DiscountType":float( b['DiscountType']),
-                                "Discount":float( b['Discount']),
-                                "DiscountAmount":float(b['DiscountAmount']) 
-
-
-                            })
-                            # df = pd.DataFrame(InvoiceListData)
-                            # file_path = 'example.xlsx'
-                            # df.to_excel(file_path, index=False)
-                            # return file_path
-
-                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': InvoiceListData})
-                return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Record Not Found', 'Data': []})
+                    GenericSaleData=list()
+                    GenericSaleSerializer=GenericSaleReportSerializer(Genericdataquery, many=True).data
+                    # GenericSaleData.append({"GenericSaleDetails" : GenericSaleSerializer})
+                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message':'', 'Data': GenericSaleSerializer})
+                else:
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not available ', 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
@@ -418,50 +369,48 @@ class RetailerDataView(CreateAPIView):
     def post(self, request, id=0):
         try:
             with transaction.atomic():
-                Orderdata = JSONParser().parse(request)
-                Party = Orderdata['Party']
-
-                q0 = MC_PartySubParty.objects.filter(Party=Party)
-                query = M_Parties.objects.filter(id__in=q0).select_related()
-                # print(query.query)
-                if query:
-                    PartyData = list()
-                    M_Parties_serializer = M_PartiesSerializerSecond(
-                        query, many=True).data
-                    for a in M_Parties_serializer:
-
-                        for addr in a["PartyAddress"]:
-                            if addr["IsDefault"] == 1:
-                                address = addr["Address"]
-
-                        PartyData.append({
-                            "id": a['id'],
-
-                            "PartyAddress": address,
-                            "City": a["City"]["Name"],
-                            "District": a["District"]["Name"],
-                            "State": a["State"]["Name"],
-                            "Company": a["Company"]["Name"],
-                            "PartyType": a["PartyType"]["Name"],
-                            "PriceList": a["PriceList"]["Name"],
-                            "Name": a["Name"],
-                            "Email": a["Email"],
-                            "MobileNo": a["MobileNo"],
-                            "AlternateContactNo": a["AlternateContactNo"],
-                            "SAPPartyCode": a["SAPPartyCode"],
-                            "GSTIN": a["GSTIN"],
-                            "PAN": a["PAN"],
-                            "isActive": a["isActive"],
-                            "Latitude": a["Latitude"],
-                            "Longitude": a["Longitude"]
-                          })
-
-                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': PartyData})
+                Retailerdata = JSONParser().parse(request)
+                Party = Retailerdata['Party']
+                if(Party==0):
+                    query = M_Parties.objects.raw('''SELECT M_Parties.id, Supplier.Name SupplierName,M_Parties.Name, M_Parties.isActive, M_Parties.Email, M_Parties.MobileNo, M_Parties.AlternateContactNo,MC_PartyAddress.Address,MC_PartyAddress.PIN,MC_PartyAddress.FSSAINo,MC_PartyAddress.FSSAIExipry,M_Parties.GSTIN, M_Parties.PAN,M_States.Name StateName,M_Districts.Name DistrictName,M_Cities.Name CityName,M_Routes.Name RouteName,C_Companies.Name CompanyName,M_PartyType.Name PartyTypeName, M_PriceList.Name PriceListName, M_Parties.Latitude, M_Parties.Longitude,M_Parties.SAPPartyCode
+FROM MC_PartySubParty
+JOIN M_Parties Supplier  ON Supplier.id= MC_PartySubParty.Party_id
+JOIN M_Parties  ON M_Parties.id= MC_PartySubParty.SubParty_id
+JOIN MC_PartyAddress ON MC_PartyAddress.Party_id =M_Parties.id AND  MC_PartyAddress.IsDefault=1
+JOIN M_PartyType ON M_PartyType.id = M_Parties.PartyType_id AND M_PartyType.IsRetailer=1
+JOIN M_States ON M_States.id = M_Parties.State_id
+JOIN M_Districts ON M_Districts.id = M_Parties.District_id
+LEFT JOIN M_Cities ON M_Cities.id=M_Parties.City_id
+LEFT JOIN M_PriceList ON M_PriceList.id = M_Parties.PriceList_id
+LEFT JOIN C_Companies ON C_Companies.id = M_Parties.Company_id
+Left JOIN M_Routes ON M_Routes.id=MC_PartySubParty.Route_id
+''')
                 else:
-                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Records Not available', 'Data': []})
-        except Exception as e:
-            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+                    query = M_Parties.objects.raw('''SELECT M_Parties.id, Supplier.Name SupplierName,M_Parties.Name, M_Parties.isActive, M_Parties.Email, M_Parties.MobileNo, M_Parties.AlternateContactNo,MC_PartyAddress.Address,MC_PartyAddress.PIN,MC_PartyAddress.FSSAINo,MC_PartyAddress.FSSAIExipry,M_Parties.GSTIN, M_Parties.PAN,M_States.Name StateName,M_Districts.Name DistrictName,M_Cities.Name CityName,M_Routes.Name RouteName,C_Companies.Name CompanyName,M_PartyType.Name PartyTypeName, M_PriceList.Name PriceListName, M_Parties.Latitude, M_Parties.Longitude,M_Parties.SAPPartyCode
+FROM MC_PartySubParty
+JOIN M_Parties Supplier  ON Supplier.id= MC_PartySubParty.Party_id
+JOIN M_Parties  ON M_Parties.id= MC_PartySubParty.SubParty_id
+JOIN MC_PartyAddress ON MC_PartyAddress.Party_id =M_Parties.id AND  MC_PartyAddress.IsDefault=1
+JOIN M_PartyType ON M_PartyType.id = M_Parties.PartyType_id AND M_PartyType.IsRetailer=1
+JOIN M_States ON M_States.id = M_Parties.State_id
+JOIN M_Districts ON M_Districts.id = M_Parties.District_id
+LEFT JOIN M_Cities ON M_Cities.id=M_Parties.City_id
+LEFT JOIN M_PriceList ON M_PriceList.id = M_Parties.PriceList_id
+LEFT JOIN C_Companies ON C_Companies.id = M_Parties.Company_id
+Left JOIN M_Routes ON M_Routes.id=MC_PartySubParty.Route_id
+WHERE MC_PartySubParty.Party_id=%s''',[Party])
 
+
+               
+                if query:
+                    RetailerExportData=list()
+                    RetailerExportSerializer=RetailerDataExportSerializer(query, many=True).data
+                    RetailerExportData.append({"ReportExportSerializerDetails" : RetailerExportSerializer})
+                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message':'', 'Data': RetailerExportData[0]})
+                else:
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not available ', 'Data': []})  
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []}) 
 
 # ================================Stock Processing ================================
 
@@ -489,11 +438,11 @@ class StockProcessingView(CreateAPIView):
                     StockDeleteQuery.delete()
                     # print(StockDeleteQuery.query)
                     StockProcessQuery = O_DateWiseLiveStock.objects.raw('''select id,ItemID,UnitID,round(OpeningBalance,3) OpeningBalance,round(GRN,3) GRN,round(SalesReturn,3) SalesReturn,round(Sale,3) Sale,round(PurchaseReturn,3) PurchaseReturn,
-round(((OpeningBalance+GRN+SalesReturn)-(Sale+PurchaseReturn)),3) ClosingBalance
+round(((OpeningBalance+GRN+SalesReturn)-(Sale+PurchaseReturn)),3) ClosingBalance,ActualStock
  from
 (select 1 as id,I.Item_id ItemID,I.UnitID,
 CASE WHEN StockQuantity >= 0  THEN IFNULL(StockQuantity,0)  ELSE IFNULL(ClosingBalance,0) END OpeningBalance,
-IFNULL(InvoiveQuantity,0)Sale,IFNULL(GRNQuantity,0)GRN,IFNULL(SalesReturnQuantity,0)SalesReturn,IFNULL(PurchesReturnQuantity,0)PurchaseReturn
+IFNULL(InvoiveQuantity,0)Sale,IFNULL(GRNQuantity,0)GRN,IFNULL(SalesReturnQuantity,0)SalesReturn,IFNULL(PurchesReturnQuantity,0)PurchaseReturn,IFNULL(ActualStock,0)ActualStock
 
 from
 (Select Item_id,M_Items.BaseUnitID_id UnitID  from MC_PartyItems join M_Items on M_Items.id=MC_PartyItems.Item_id where Party_id=%s)I
@@ -520,7 +469,8 @@ left join
 
 (SELECT Item_id,SUM(BaseUnitQuantity) StockQuantity
 FROM T_Stock
-WHERE StockDate = %s AND Party_id = %s GROUP BY Item_id)Stock
+WHERE StockDate = DATE_SUB(  %s, INTERVAL 1 
+					DAY ) AND Party_id = %s GROUP BY Item_id)Stock
 
 on I.Item_id=Stock.Item_id
 left join
@@ -535,17 +485,21 @@ left join
 (SELECT Item_id,SUM(BaseUnitQuantity) PurchesReturnQuantity,sum(Amount) PurchesReturnValue   
 FROM T_PurchaseReturn join TC_PurchaseReturnItems on TC_PurchaseReturnItems.PurchaseReturn_id=T_PurchaseReturn.id      
 WHERE ReturnDate = %s AND Customer_id = %s GROUP BY Item_id)PurchesReturn
-on I.Item_id=PurchesReturn.Item_id)R
+on I.Item_id=PurchesReturn.Item_id
+LEFT JOIN
+
+(Select Item_id,SUM(BaseUnitQuantity) ActualStock from T_Stock where StockDate = %s AND Party_id= %s GROUP BY Item_id)ActualStock
+on I.Item_id=ActualStock.Item_id)R
 where 
 OpeningBalance!=0 OR GRN!=0 OR Sale!=0 OR PurchaseReturn != 0 OR SalesReturn !=0  ''',
-([Party], [Date],[Party], [Date], [Party], [Date], [Party], [Date], [Party], [Date], [Party], [Date], [Party]))
+([Party], [Date],[Party], [Date], [Party], [Date], [Party], [Date], [Party], [Date], [Party], [Date], [Party], [Date], [Party]))
                     
-                    # print(StockProcessQuery)
+                    print(StockProcessQuery)
                     serializer=StockProcessingReportSerializer(StockProcessQuery, many=True).data
                     # print(serializer)
                     for a in serializer:
 
-                        stock=O_DateWiseLiveStock(StockDate=Date,OpeningBalance=a["OpeningBalance"], GRN=a["GRN"], Sale=a["Sale"], PurchaseReturn=a["PurchaseReturn"], SalesReturn=a["SalesReturn"], ClosingBalance=a["ClosingBalance"], ActualStock=0, Item_id=a["ItemID"], Unit_id=a["UnitID"], Party_id=Party, CreatedBy=0,  IsAdjusted=0, MRPValue=0)
+                        stock=O_DateWiseLiveStock(StockDate=Date,OpeningBalance=a["OpeningBalance"], GRN=a["GRN"], Sale=a["Sale"], PurchaseReturn=a["PurchaseReturn"], SalesReturn=a["SalesReturn"], ClosingBalance=a["ClosingBalance"], ActualStock=a['ActualStock'], Item_id=a["ItemID"], Unit_id=a["UnitID"], Party_id=Party, CreatedBy=0,  IsAdjusted=0, MRPValue=0)
                         stock.save()
                     current_date += timedelta(days=1)
 
@@ -626,16 +580,14 @@ FROM
                             "StockDetails" : serializer
                             
                 })
-                
-                return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': StockData})
+
+                if StockreportQuery:
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': StockData})      
+                else:
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Record Not Found', 'Data': []})           
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
                                           
-
-
-
-
-
          
 # select I.Item_id,I.ItemName,InvoiveQuantity,InvoiceMRP,GRNQuantity,GRNMRP,StockQuantity,StockMRP,SalesReturnQuantity,SalesReturnMRP,PurchesReturnQuantity,PurchesReturnMRP from 
 
@@ -715,7 +667,6 @@ FROM
 # GROUP BY Item_id,MRPValue)e
 # on I.Item_id=e.Item_id and b.GRNMRP=e.PurchesReturnMRP
 
-
 class PurchaseGSTReportView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
     
@@ -729,7 +680,8 @@ class PurchaseGSTReportView(CreateAPIView):
                 GSTRatewise = Reportdata['GSTRatewise']
                 
                 if GSTRatewise == 1:
-                    query = T_GRNs.objects.raw('''SELECT 1 As id, GSTPercentage,  SUM(BasicAmount) TaxableValue, SUM(CGST) CGST, SUM( SGST) SGST, SUM( IGST) IGST, SUM(GSTAmount) GSTAmount, SUM(Amount) TotalValue  FROM TC_GRNItems JOIN T_GRNs ON TC_GRNItems.GRN_id=T_GRNs.id WHERE  T_GRNs.GRNDate  BETWEEN %s AND %s AND T_GRNs.Customer_id= %s GROUP BY TC_GRNItems.GSTPercentage UNION SELECT 1 As id, NULL GSTPercentage, SUM(BasicAmount) TaxableValue, SUM(CGST) CGST, SUM( SGST) SGST, SUM( IGST) IGST, SUM(GSTAmount) GSTAmount, SUM(Amount) TotalValue FROM TC_GRNItems JOIN T_GRNs ON TC_GRNItems.GRN_id=T_GRNs.id WHERE  T_GRNs.GRNDate  BETWEEN %s AND %s AND T_GRNs.Customer_id= %s  ''',([FromDate],[ToDate],[Customer],[FromDate],[ToDate],[Customer]))
+                   
+                    query = TC_GRNReferences.objects.raw('''SELECT 1 As id, GSTPercentage,  SUM(BasicAmount) TaxableValue, SUM(CGST) CGST, SUM( SGST) SGST, SUM( IGST) IGST, SUM(GSTAmount) GSTAmount, SUM(Amount) TotalValue   FROM TC_GRNReferences JOIN T_Invoices ON T_Invoices.id =TC_GRNReferences.Invoice_id JOIN TC_InvoiceItems ON TC_InvoiceItems.Invoice_id = T_Invoices.id WHERE T_Invoices.InvoiceDate BETWEEN %s AND %s AND T_Invoices.Customer_id= %s GROUP BY TC_InvoiceItems.GSTPercentage''',([FromDate],[ToDate],[Customer]))
                     if query :
                         PurchaseGSTRateWiseData=list()
                         PurchaseGSTRateWiseSerializer=PurchaseGSTRateWiseReportSerializer(query, many=True).data
@@ -738,7 +690,7 @@ class PurchaseGSTReportView(CreateAPIView):
                     else:
                         return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not available ', 'Data': []})
                 else:
-                    query=T_GRNs.objects.raw('''SELECT 1 as id, M_Parties.Name, FullGRNNumber,InvoiceNumber, GRNDate,(CGSTPercentage + SGSTPercentage + IGSTPercentage) GSTRate, SUM(BasicAmount) TaxableValue, SUM(CGST) CGST, SUM( SGST) SGST, SUM( IGST) IGST, SUM(GSTAmount) GSTAmount, SUM(TC_GRNItems.DiscountAmount) DiscountAmount, SUM(Amount) TotalValue  FROM TC_GRNItems JOIN T_GRNs ON TC_GRNItems.GRN_id=T_GRNs.id JOIN M_Parties ON T_GRNs.Party_id= M_Parties.id  WHERE  T_GRNs.GRNDate BETWEEN %s AND %s AND T_GRNs.Customer_id=%s GROUP BY  M_Parties.id,T_GRNs.FullGRNNumber,T_GRNs.InvoiceNumber,T_GRNs.GRNDate,TC_GRNItems.GstPercentage  UNION ALL SELECT 1 as id, NULL Name, NULL FullGRNNumber,NULL InvoiceNumber, NULL GRNDate, NULL GSTRate, SUM(BasicAmount) TaxableValue, SUM(CGST) CGST, SUM( SGST) SGST, SUM( IGST) IGST, SUM(GSTAmount) GSTAmount, SUM(TC_GRNItems.DiscountAmount) DiscountAmount, SUM(Amount)TotalValue FROM TC_GRNItems JOIN T_GRNs ON TC_GRNItems.GRN_id=T_GRNs.id JOIN M_Parties ON T_GRNs.Party_id= M_Parties.id WHERE T_GRNs.GRNDate BETWEEN  %s AND %s AND T_GRNs.Customer_id=%s''',([FromDate],[ToDate],[Customer],[FromDate],[ToDate],[Customer]))
+                    query=TC_GRNReferences.objects.raw('''SELECT 1 AS id,M_Parties.Name,InvoiceNumber,FullInvoiceNumber,InvoiceDate,SUM(CGSTPercentage + SGSTPercentage + IGSTPercentage) GSTRate,GSTPercentage,SUM(BasicAmount) TaxableValue,SUM(CGST) CGST,SUM(SGST) SGST,SUM(IGST) IGST,SUM(GSTAmount) GSTAmount,SUM(TC_InvoiceItems.DiscountAmount) DiscountAmount,SUM(Amount) TotalValue FROM TC_GRNReferences JOIN T_Invoices ON T_Invoices.id = TC_GRNReferences.Invoice_id JOIN TC_InvoiceItems ON TC_InvoiceItems.Invoice_id = T_Invoices.id JOIN M_Parties ON T_Invoices.Party_id = M_Parties.id WHERE T_Invoices.InvoiceDate BETWEEN %s AND %s AND T_Invoices.Customer_id =%s GROUP BY M_Parties.id, T_Invoices.InvoiceNumber, T_Invoices.FullInvoiceNumber, T_Invoices.InvoiceDate, TC_InvoiceItems.GSTPercentage''',([FromDate],[ToDate],[Customer]))
                     if query :
                         PurchaseGSTSerializer= PurchaseGSTReportSerializer(query, many=True).data
                         # print(PurchaseGSTSerializer)
@@ -761,10 +713,10 @@ class InvoiceDateExportReportView(CreateAPIView):
                 FromDate = Reportdata['FromDate']
                 ToDate = Reportdata['ToDate']
                 Party =  Reportdata['Party']
-           
+                Customer = Reportdata['Customer']
                 
-               
-                query = T_Invoices.objects.raw('''SELECT TC_InvoiceItems.id,T_Invoices.Party_id AS PartyID,A.Name PartyName,T_Invoices.FullInvoiceNumber,T_Invoices.InvoiceDate,T_Invoices.Customer_id As CustomerID,B.Name CustomerName,TC_InvoiceItems.Item_id AS ItemID,M_Items.Name ItemName,C_Companies.Name CompanyName,M_GSTHSNCode.HSNCode,TC_InvoiceItems.MRPValue AS MRP,TC_InvoiceItems.QtyInNo,TC_InvoiceItems.QtyInKg,TC_InvoiceItems.QtyInBox,TC_InvoiceItems.Rate AS BasicRate,(TC_InvoiceItems.Rate +((TC_InvoiceItems.Rate * TC_InvoiceItems.GSTPercentage)/100))WithGSTRate, M_Units.Name AS UnitName,TC_InvoiceItems.DiscountType, TC_InvoiceItems.Discount,TC_InvoiceItems.DiscountAmount,TC_InvoiceItems.BasicAmount As TaxableValue,TC_InvoiceItems.CGST,TC_InvoiceItems.CGSTPercentage,TC_InvoiceItems.SGST,TC_InvoiceItems.SGSTPercentage,TC_InvoiceItems.IGST,TC_InvoiceItems.IGSTPercentage,TC_InvoiceItems.GSTPercentage,TC_InvoiceItems.GSTAmount,TC_InvoiceItems.Amount AS TotalValue,T_Orders.FullOrderNumber,T_Orders.OrderDate,T_Invoices.TCSAmount,T_Invoices.RoundOffAmount,T_Invoices.GrandTotal,M_Routes.Name AS RouteName,M_States.Name AS StateName,B.GSTIN
+                if(Party)>0:
+                    query = T_Invoices.objects.raw('''SELECT TC_InvoiceItems.id,T_Invoices.Party_id AS SupplierID,A.Name SupplierName,T_Invoices.FullInvoiceNumber As InvoiceNumber,T_Invoices.InvoiceDate,T_Invoices.Customer_id As CustomerID,B.Name CustomerName,TC_InvoiceItems.Item_id AS FE2MaterialID,M_Items.Name As MaterialName,C_Companies.Name CompanyName,M_GSTHSNCode.HSNCode,TC_InvoiceItems.MRPValue AS MRP,TC_InvoiceItems.QtyInNo,TC_InvoiceItems.QtyInKg,TC_InvoiceItems.QtyInBox,TC_InvoiceItems.Rate AS BasicRate,(TC_InvoiceItems.Rate +((TC_InvoiceItems.Rate * TC_InvoiceItems.GSTPercentage)/100))WithGSTRate, M_Units.Name AS UnitName,TC_InvoiceItems.DiscountType, TC_InvoiceItems.Discount,TC_InvoiceItems.DiscountAmount,TC_InvoiceItems.BasicAmount As TaxableValue,TC_InvoiceItems.CGST,TC_InvoiceItems.CGSTPercentage,TC_InvoiceItems.SGST,TC_InvoiceItems.SGSTPercentage,TC_InvoiceItems.IGST,TC_InvoiceItems.IGSTPercentage,TC_InvoiceItems.GSTPercentage,TC_InvoiceItems.GSTAmount,TC_InvoiceItems.Amount AS TotalValue,T_Invoices.TCSAmount,T_Invoices.RoundOffAmount,T_Invoices.GrandTotal,M_Routes.Name AS RouteName,M_States.Name AS StateName,B.GSTIN,TC_InvoiceUploads.Irn, TC_InvoiceUploads.AckNo,TC_InvoiceUploads.EwayBillNo
 FROM TC_InvoiceItems
 JOIN T_Invoices ON T_Invoices.id =TC_InvoiceItems.Invoice_id
 JOIN TC_InvoicesReferences ON TC_InvoicesReferences.Invoice_id=T_Invoices.id
@@ -778,35 +730,271 @@ JOIN M_GSTHSNCode ON M_GSTHSNCode.id=TC_InvoiceItems.GST_id
 JOIN MC_ItemUnits ON MC_ItemUnits.id=TC_InvoiceItems.Unit_id
 JOIN M_Units ON M_Units.id = MC_ItemUnits.UnitID_id
 JOIN MC_PartySubParty ON MC_PartySubParty.SubParty_id=T_Invoices.Customer_id AND MC_PartySubParty.Party_id=%s
-JOIN M_Routes ON M_Routes.id=MC_PartySubParty.Route_id
+LEFT JOIN M_Routes ON M_Routes.id=MC_PartySubParty.Route_id
+LEFT JOIN TC_InvoiceUploads on TC_InvoiceUploads.Invoice_id = T_Invoices.id
 WHERE T_Invoices.InvoiceDate BETWEEN %s AND %s AND  T_Invoices.Party_id=%s ''',([Party],[FromDate],[ToDate],[Party]))
+                    
+                else:
+                
+                    query = T_Invoices.objects.raw('''SELECT TC_InvoiceItems.id,T_Invoices.Party_id AS SupplierID,A.Name SupplierName,T_Invoices.FullInvoiceNumber As InvoiceNumber,T_Invoices.InvoiceDate,T_Invoices.Customer_id As CustomerID,B.Name CustomerName,TC_InvoiceItems.Item_id AS FE2MaterialID,M_Items.Name As MaterialName,C_Companies.Name CompanyName,M_GSTHSNCode.HSNCode,TC_InvoiceItems.MRPValue AS MRP,TC_InvoiceItems.QtyInNo,TC_InvoiceItems.QtyInKg,TC_InvoiceItems.QtyInBox,TC_InvoiceItems.Rate AS BasicRate,(TC_InvoiceItems.Rate +((TC_InvoiceItems.Rate * TC_InvoiceItems.GSTPercentage)/100))WithGSTRate, M_Units.Name AS UnitName,TC_InvoiceItems.DiscountType, TC_InvoiceItems.Discount,TC_InvoiceItems.DiscountAmount,TC_InvoiceItems.BasicAmount As TaxableValue,TC_InvoiceItems.CGST,TC_InvoiceItems.CGSTPercentage,TC_InvoiceItems.SGST,TC_InvoiceItems.SGSTPercentage,TC_InvoiceItems.IGST,TC_InvoiceItems.IGSTPercentage,TC_InvoiceItems.GSTPercentage,TC_InvoiceItems.GSTAmount,TC_InvoiceItems.Amount AS TotalValue,T_Invoices.TCSAmount,T_Invoices.RoundOffAmount,T_Invoices.GrandTotal,'' AS RouteName,M_States.Name AS StateName,B.GSTIN,TC_InvoiceUploads.Irn, TC_InvoiceUploads.AckNo,TC_InvoiceUploads.EwayBillNo
+    FROM TC_InvoiceItems
+    JOIN T_Invoices ON T_Invoices.id =TC_InvoiceItems.Invoice_id
+   
+    JOIN M_Parties A ON A.id= T_Invoices.Party_id
+    JOIN M_Parties B ON B.id = T_Invoices.Customer_id
+    JOIN M_States ON M_States.id = B.State_id
+    JOIN M_Items ON M_Items.id = TC_InvoiceItems.Item_id
+    JOIN C_Companies ON C_Companies.id = M_Items.Company_id
+    JOIN MC_ItemUnits ON MC_ItemUnits.id=TC_InvoiceItems.Unit_id
+    JOIN M_Units ON M_Units.id = MC_ItemUnits.UnitID_id
+    JOIN M_GSTHSNCode ON M_GSTHSNCode.Item_id=TC_InvoiceItems.Item_id and M_GSTHSNCode.IsDeleted=0
+    LEFT JOIN TC_InvoiceUploads on TC_InvoiceUploads.Invoice_id = T_Invoices.id
+    WHERE T_Invoices.InvoiceDate BETWEEN %s AND %s AND  T_Invoices.Customer_id=%s ''',([FromDate],[ToDate],[Customer]))
+                    
+                
+# JOIN TC_InvoicesReferences ON TC_InvoicesReferences.Invoice_id=T_Invoices.id
+# JOIN T_Orders ON T_Orders.id = TC_InvoicesReferences.Order_id        
+# JOIN MC_PartySubParty ON MC_PartySubParty.SubParty_id=T_Invoices.Customer_id AND MC_PartySubParty.SubParty_id=%s
+# LEFT JOIN M_Routes ON M_Routes.id=MC_PartySubParty.Route_id    
+
                 # print(str(query.query))
                 if query:
                     InvoiceExportData=list()
                     InvoiceExportSerializer=InvoiceDataExportSerializer(query, many=True).data
-                    InvoiceExportData.append({"InvoiceExportSerializerDetails" : InvoiceExportSerializer})
-                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message':'', 'Data': InvoiceExportData[0]})
+                    for b in InvoiceExportSerializer:
+                        
+                        qur2=M_Parties.objects.filter(id=b['CustomerID']).values('PriceList').distinct()
+                        query = M_PriceList.objects.values('id').filter(id__in=qur2)
+                        
+                        Rate=RateCalculationFunction(0,b['FE2MaterialID'],0,0,1,0,query[0]['id']).RateWithGST()
+                        NoRate=float(Rate[0]['NoRatewithOutGST'])
+                        InvoiceExportData.append({
+                            
+                            "SupplierID":b['SupplierID'],
+                            "SupplierName":b['SupplierName'],
+                            "InvoiceNumber":b['InvoiceNumber'],
+                            "InvoiceDate":b['InvoiceDate'],
+                            "CustomerID":b['CustomerID'],
+                            "CustomerName":b['CustomerName'],
+                            "FE2MaterialID":b['FE2MaterialID'],
+                            "MaterialName":b['MaterialName'],
+                            "CompanyName":b['CompanyName'],
+                            "HSNCode":b['HSNCode'],
+                            "MRP":b['MRP'],
+                            "QtyInNo":b['QtyInNo'],
+                            "QtyInKg":b['QtyInKg'],
+                            "QtyInBox":b['QtyInBox'],
+                            "BasicRate":b['BasicRate'],
+                            "WithGSTRate":b['WithGSTRate'],
+                            "NoRate":NoRate,
+                            "UnitName":b['UnitName'],
+                            "DiscountType":b['DiscountType'],
+                            "Discount":b['Discount'],
+                            "DiscountAmount":b['DiscountAmount'],
+                            "TaxableValue":b['TaxableValue'],
+                            "CGST":b['CGST'],
+                            "CGSTPercentage":b['CGSTPercentage'],
+                            "SGST":b['SGST'],
+                            "SGSTPercentage":b['SGSTPercentage'],
+                            "IGST":b['IGST'],
+                            "IGSTPercentage":b['IGSTPercentage'],
+                            "GSTPercentage":b['GSTPercentage'],
+                            "GSTAmount":b['GSTAmount'],
+                            "TotalValue":b['TotalValue'],
+                            "TCSAmount":b['TCSAmount'],
+                            "RoundOffAmount":b['RoundOffAmount'],
+                            "GrandTotal":b['GrandTotal'],
+                            "RouteName":b['RouteName'],
+                            "StateName":b['StateName'],
+                            "GSTIN":b['GSTIN'],
+                            "Irn":b['Irn'],
+                            "AckNo":b['AckNo'],
+                            "EwayBillNo":b['EwayBillNo'],
+                        })
+                    # InvoiceExportData.append({"InvoiceExportSerializerDetails" : InvoiceExportSerializer})
+                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message':'', 'Data': InvoiceExportData})
                 else:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not available ', 'Data': []})  
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []}) 
-
-class DamageStockReportView(CreateAPIView):
+        
+        
+class DeletedInvoiceDateExportReportView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    
-    def get(self, request, id=0):
+    def post(self, request, id=0):
         try:
             with transaction.atomic():
-                query = O_BatchWiseLiveStock.objects.raw('''SELECT M_Items.id, M_Items.Name ItemName, SUM(BaseUnitQuantity) Qty,M_Units.Name UnitName FROM O_BatchWiseLiveStock JOIN M_Items ON M_Items.id=O_BatchWiseLiveStock.Item_id JOIN M_Units ON M_Units.id=M_Items.BaseUnitID_id  WHERE O_BatchWiseLiveStock.Party_id=%s AND O_BatchWiseLiveStock.IsDamagePieces=1 AND O_BatchWiseLiveStock.BaseUnitQuantity>0   GROUP BY O_BatchWiseLiveStock.Item_id''',([id]))
+                Reportdata = JSONParser().parse(request)
+                FromDate = Reportdata['FromDate']
+                ToDate = Reportdata['ToDate']
+                Party =  Reportdata['Party']
+                query = T_DeletedInvoices.objects.raw('''SELECT TC_DeletedInvoiceItems.id,T_DeletedInvoices.Party AS SupplierID,A.Name SupplierName,T_DeletedInvoices.FullInvoiceNumber As InvoiceNumber,T_DeletedInvoices.InvoiceDate,T_DeletedInvoices.Customer As CustomerID,B.Name CustomerName,TC_DeletedInvoiceItems.Item AS FE2MaterialID,M_Items.Name As MaterialName,C_Companies.Name CompanyName,M_GSTHSNCode.HSNCode,TC_DeletedInvoiceItems.MRPValue AS MRP,TC_DeletedInvoiceItems.QtyInNo,TC_DeletedInvoiceItems.QtyInKg,TC_DeletedInvoiceItems.QtyInBox,TC_DeletedInvoiceItems.Rate AS BasicRate,(TC_DeletedInvoiceItems.Rate +((TC_DeletedInvoiceItems.Rate * TC_DeletedInvoiceItems.GSTPercentage)/100))WithGSTRate, M_Units.Name AS UnitName,TC_DeletedInvoiceItems.DiscountType, TC_DeletedInvoiceItems.Discount,TC_DeletedInvoiceItems.DiscountAmount,TC_DeletedInvoiceItems.BasicAmount As TaxableValue,TC_DeletedInvoiceItems.CGST,TC_DeletedInvoiceItems.CGSTPercentage,TC_DeletedInvoiceItems.SGST,TC_DeletedInvoiceItems.SGSTPercentage,TC_DeletedInvoiceItems.IGST,TC_DeletedInvoiceItems.IGSTPercentage,TC_DeletedInvoiceItems.GSTPercentage,TC_DeletedInvoiceItems.GSTAmount,TC_DeletedInvoiceItems.Amount AS TotalValue,T_DeletedInvoices.TCSAmount,T_DeletedInvoices.RoundOffAmount,T_DeletedInvoices.GrandTotal,M_Routes.Name AS RouteName,M_States.Name AS StateName,B.GSTIN,TC_DeletedInvoiceUploads.Irn, TC_DeletedInvoiceUploads.AckNo,TC_DeletedInvoiceUploads.EwayBillNo
+FROM TC_DeletedInvoiceItems
+JOIN T_DeletedInvoices ON T_DeletedInvoices.Invoice =TC_DeletedInvoiceItems.Invoice
+JOIN M_Parties A ON A.id= T_DeletedInvoices.Party
+JOIN M_Parties B ON B.id = T_DeletedInvoices.Customer
+JOIN M_States ON M_States.id = B.State_id
+JOIN M_Items ON M_Items.id = TC_DeletedInvoiceItems.Item
+JOIN C_Companies ON C_Companies.id = M_Items.Company_id
+JOIN M_GSTHSNCode ON M_GSTHSNCode.id=TC_DeletedInvoiceItems.GST
+JOIN MC_ItemUnits ON MC_ItemUnits.id=TC_DeletedInvoiceItems.Unit
+JOIN M_Units ON M_Units.id = MC_ItemUnits.UnitID_id
+JOIN MC_PartySubParty ON MC_PartySubParty.SubParty_id=T_DeletedInvoices.Customer AND MC_PartySubParty.Party_id=%s
+LEFT JOIN M_Routes ON M_Routes.id=MC_PartySubParty.Route_id
+LEFT JOIN TC_DeletedInvoiceUploads on TC_DeletedInvoiceUploads.Invoice= T_DeletedInvoices.id
+WHERE T_DeletedInvoices.InvoiceDate BETWEEN %s AND %s AND  T_DeletedInvoices.Party=%s ''',([Party],[FromDate],[ToDate],[Party]))
+                print(str(query.query))
                 if query:
-                    DamageStockData=list()
-                    DamageItemStocktSerializer=DamageStocktSerializer(query, many=True).data
-                    DamageStockData.append({"DamageStockItemDetails" : DamageItemStocktSerializer})
-                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message':'', 'Data': DamageStockData[0]}) 
+                    DeletedInvoiceExportData=list()
+                    DeletedInvoiceExportSerializer=InvoiceDataExportSerializer(query, many=True).data
+                    DeletedInvoiceExportData.append({"DeletedInvoiceExportSerializerDetails" : DeletedInvoiceExportSerializer})
+                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message':'', 'Data': DeletedInvoiceExportData[0]})
                 else:
-                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not available ', 'Data': []})          
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not available ', 'Data': []})  
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})         
+        
+
+class StockDamageReportView(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                Damagedata = JSONParser().parse(request)
+                FromDate = Damagedata['FromDate']
+                ToDate = Damagedata['ToDate']
+                PartyID = Damagedata['PartyID']
+                ConversionUnit = Damagedata['Unit']
+
+                query1 = M_Units.objects.filter(
+                    id=ConversionUnit).values('Name')
+                query = O_BatchWiseLiveStock.objects.raw(
+                    '''SELECT M_Items.id, M_Items.Name ItemName, SUM(BaseUnitQuantity) Qty,M_Units.id UnitID FROM O_BatchWiseLiveStock JOIN M_Items ON M_Items.id=O_BatchWiseLiveStock.Item_id JOIN M_Units ON M_Units.id=M_Items.BaseUnitID_id  WHERE O_BatchWiseLiveStock.Party_id=%s AND O_BatchWiseLiveStock.IsDamagePieces=1 AND O_BatchWiseLiveStock.BaseUnitQuantity>0   GROUP BY O_BatchWiseLiveStock.Item_id''', ([PartyID]))
+                if query:
+                    DamageStockData = list()
+                    DamageItemStocktSerializer = DamageStocktSerializer(
+                        query, many=True).data
+                    for a in DamageItemStocktSerializer:
+                        ConversionUnitQty = UnitwiseQuantityConversion(
+                            a['id'], a['Qty'], 0, a['UnitID'], 0, ConversionUnit, 0).ConvertintoSelectedUnit()
+                        DamageStockData.append({
+                            "id": a['id'],
+                            "ItemName": a['ItemName'],
+                            "Quantity": ConversionUnitQty,
+                            "UnitName": query1[0]['Name']
+                        })
+
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': DamageStockData})
+                else:
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not available ', 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+
     
-                                            
-                                 
+class ReturnReportDownloadView(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    def post(self, request, id=0):
+        try:
+            with transaction.atomic():
+                Reportdata = JSONParser().parse(request)
+                FromDate = Reportdata['FromDate']
+                ToDate = Reportdata['ToDate']
+                Party =  Reportdata['Party']
+                Party_list = Party.split(",")
+                query = T_PurchaseReturn.objects.raw('''SELECT T_PurchaseReturn.id, T_PurchaseReturn.ReturnDate,B.Name CustomerName,D.Name CustomerType,C_Companies.Name CompanyName, M_Group.Name Product,MC_SubGroup.Name SubProduct, M_Items.Name MaterialName,TC_PurchaseReturnItems.Quantity ReturnQtyNos,TC_PurchaseReturnItems.MRPValue,TC_PurchaseReturnItems.Rate, TC_PurchaseReturnItems.BasicAmount,TC_PurchaseReturnItems.GSTPercentage, TC_PurchaseReturnItems.GSTAmount, TC_PurchaseReturnItems.Amount,TC_PurchaseReturnItems.Discount,TC_PurchaseReturnItems.DiscountAmount,TC_PurchaseReturnItems.DiscountType,TC_PurchaseReturnItems.BatchDate, TC_PurchaseReturnItems.BatchCode,M_GeneralMaster.Name ReasonForReturn,TC_PurchaseReturnItems.ApprovedQuantity ApprovedQuantityInNo,MC_PartyAddress.Address,MC_PartyAddress.PIN,M_Routes.Name RouteName,A.Name SupplierName,C.Name SupplierType,T_PurchaseReturn.FullReturnNumber,ApprovedByCompany,FinalApprovalDate,ApprovedRate,ApprovedBasicAmount,ApprovedGSTPercentage,ApprovedCGST,ApprovedIGST,ApprovedSGST,ApprovedCGSTPercentage,ApprovedSGSTPercentage,ApprovedIGSTPercentage,ApprovedGSTAmount,ApprovedAmount,ApprovedDiscountAmount FROM TC_PurchaseReturnItems JOIN T_PurchaseReturn ON T_PurchaseReturn.id =TC_PurchaseReturnItems.PurchaseReturn_id JOIN M_Parties A ON A.id= T_PurchaseReturn.Party_id JOIN M_Parties B ON B.id = T_PurchaseReturn.Customer_id JOIN M_PartyType C  ON C.id= A.PartyType_id JOIN M_PartyType D ON D.id= B.PartyType_id Left JOIN MC_PartyAddress ON MC_PartyAddress.Party_id=B.id AND MC_PartyAddress.IsDefault=1 JOIN MC_PartySubParty ON MC_PartySubParty.SubParty_id = B.id AND MC_PartySubParty.Party_id IN %s Left JOIN M_Routes ON M_Routes.id=MC_PartySubParty.Route_id JOIN M_Items ON M_Items.id = TC_PurchaseReturnItems.Item_id LEFT JOIN MC_ItemGroupDetails on MC_ItemGroupDetails.Item_id=M_Items.id LEFT JOIN M_GroupType ON M_GroupType.id = MC_ItemGroupDetails.GroupType_id LEFT JOIN M_Group ON M_Group.id  = MC_ItemGroupDetails.Group_id LEFT JOIN MC_SubGroup ON MC_SubGroup.id  = MC_ItemGroupDetails.SubGroup_id JOIN M_GeneralMaster ON M_GeneralMaster.id = TC_PurchaseReturnItems.ItemReason_id JOIN C_Companies ON C_Companies.id = M_Items.Company_id WHERE T_PurchaseReturn.ReturnDate BETWEEN %s AND %s AND  T_PurchaseReturn.Party_id IN %s  Order by T_PurchaseReturn.ReturnDate,T_PurchaseReturn.Customer_id  ''',([Party_list,FromDate,ToDate,Party_list]))
+               
+                if query:
+                    ReturnSerializer=ReturnReportSerializer(query, many=True).data
+                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message':'', 'Data': ReturnSerializer})
+                else:
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not available ', 'Data': []})  
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
+        
+        
+        
+class MaterialRegisterDownloadView(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    def post(self, request, id=0):
+        try:
+            with transaction.atomic():
+                Reportdata = JSONParser().parse(request)
+                FromDate = Reportdata['FromDate']
+                ToDate = Reportdata['ToDate']
+                Party =  Reportdata['Party']
+                Item =  Reportdata['Item']
+                Unit =  Reportdata['Unit']
+                
+                q1 = M_Items.objects.filter(id=Item).values('BaseUnitID_id')
+                BaseUnitID = q1[0]['BaseUnitID_id']
+                q2 = M_Settings.objects.filter(id=14).values('DefaultValue')
+                DefaultValues = q2[0]['DefaultValue']
+                
+                
+                query = T_PurchaseReturn.objects.raw('''SELECT 1 as id,a.* from (SELECT 1 Sequence, T_GRNs.GRNDate TransactionDate,T_GRNs.CreatedOn,T_GRNs.FullGRNNumber TransactionNumber,M_Parties.Name,QtyInBox,QtyInKg,QtyInNo FROM T_GRNs 
+JOIN TC_GRNItems ON TC_GRNItems.GRN_id=T_GRNs.id
+JOIN M_Parties ON M_Parties.id = T_GRNs.Party_id
+WHERE GRNDate Between %s AND %s AND Customer_id=%s and TC_GRNItems.Item_id=%s
+
+UNION ALL
+
+SELECT 2 Sequence, T_PurchaseReturn.ReturnDate TransactionDate,T_PurchaseReturn.CreatedOn ,T_PurchaseReturn.FullReturnNumber TransactionNumber,M_Parties.Name,UnitwiseQuantityConversion(%s,Quantity,0,1,0,4,0)QtyInBox,UnitwiseQuantityConversion(%s,Quantity,0,1,0,2,0)QtyInKg,UnitwiseQuantityConversion(%s,Quantity,0,1,0,1,0)QtyInNo   FROM T_PurchaseReturn 
+JOIN TC_PurchaseReturnItems ON TC_PurchaseReturnItems.PurchaseReturn_id=T_PurchaseReturn.id
+JOIN M_Parties ON M_Parties.id = T_PurchaseReturn.Customer_id
+WHERE ReturnDate Between %s AND  %s AND Party_id=%s AND TC_PurchaseReturnItems.Item_id=%s AND TC_PurchaseReturnItems.ItemReason_id IN (%s)
+
+UNION ALL
+
+SELECT 3 Sequence, StockDate TransactionDate,CreatedOn, FullReturnNumber TransactionNumber, Name, UnitwiseQuantityConversion(%s,QStock,0,%s,0,4,0)QtyInBox,UnitwiseQuantityConversion(%s,QStock,0,%s,0,2,0)QtyInKg,UnitwiseQuantityConversion(%s,QStock,0,%s,0,1,0)QtyInNo 
+FROM (SELECT 3 Sequence,T_Stock.StockDate,T_Stock.CreatedOn ,'STOCK' FullReturnNumber,M_Parties.Name, '' QtyInBox,'' QtyInKg,''QtyInNo, SUM(T_Stock.BaseUnitQuantity) QStock 
+From T_Stock
+ JOIN M_Parties ON M_Parties.id=T_Stock.Party_id  
+ WHERE StockDate Between %s AND %s AND Party_id=%s  AND  T_Stock.Item_id=%s GROUP BY 3 ,T_Stock.StockDate, FullReturnNumber,M_Parties.Name, QtyInBox, QtyInKg,QtyInNo)AA
+
+UNION ALL
+
+SELECT 4 Sequence, T_Invoices.InvoiceDate TransactionDate,T_Invoices.CreatedOn,T_Invoices.FullInvoiceNumber TransactionNumber,M_Parties.Name,QtyInBox,QtyInKg,QtyInNo FROM T_Invoices 
+JOIN TC_InvoiceItems ON TC_InvoiceItems.Invoice_id=T_Invoices.id
+JOIN M_Parties ON M_Parties.id = T_Invoices.Customer_id
+WHERE InvoiceDate Between %s AND %s AND Party_id=%s AND  TC_InvoiceItems.Item_id=%s
+
+UNION ALL
+
+SELECT 5 Sequence, T_PurchaseReturn.ReturnDate TransactionDate,T_PurchaseReturn.CreatedOn,T_PurchaseReturn.FullReturnNumber TransactionNumber,M_Parties.Name,UnitwiseQuantityConversion(%s,Quantity,0,1,0,4,0)QtyInBox,UnitwiseQuantityConversion(%s,Quantity,0,1,0,2,0)QtyInKg,UnitwiseQuantityConversion(%s,Quantity,0,1,0,1,0)QtyInNo  FROM T_PurchaseReturn 
+JOIN TC_PurchaseReturnItems ON TC_PurchaseReturnItems.PurchaseReturn_id=T_PurchaseReturn.id
+JOIN M_Parties ON M_Parties.id = T_PurchaseReturn.Party_id
+WHERE ReturnDate Between %s AND %s AND Customer_id=%s AND TC_PurchaseReturnItems.Item_id=%s)a order by CreatedOn ''',([FromDate,ToDate,Party,Item, Item,Item,Item,FromDate,ToDate,Party,Item,DefaultValues, Item,BaseUnitID,Item,BaseUnitID,Item,BaseUnitID,FromDate,ToDate,Party,Item, FromDate,ToDate,Party,Item, Item,Item,Item,FromDate,ToDate,Party,Item]))
+                
+                if query:
+                    MaterialRegisterList=MaterialRegisterSerializerView(query, many=True).data
+                    query2 = O_DateWiseLiveStock.objects.filter(StockDate=FromDate,Party=Party,Item=Item).values('OpeningBalance','Unit_id')
+                    if query2:
+                        if int(query2[0]['OpeningBalance']) > 0:
+                            OpeningBalance=UnitwiseQuantityConversion(Item,query2[0]['OpeningBalance'],0,query2[0]['Unit_id'],0,Unit,0).ConvertintoSelectedUnit()
+                        else:
+                            OpeningBalance=0.00      
+                    else:
+                        return JsonResponse({'StatusCode': 204, 'Status': True,'Message':'Stock Processing Needed', 'Data': []})
+                 
+                    query3 = O_DateWiseLiveStock.objects.filter(StockDate=ToDate,Party=Party,Item=Item).values('ClosingBalance','Unit_id')     
+                    if query3:
+                        if int(query3[0]['ClosingBalance'])>0:
+                            ClosingBalance=UnitwiseQuantityConversion(Item,query3[0]['ClosingBalance'],0,query3[0]['Unit_id'],0,Unit,0).ConvertintoSelectedUnit()
+                        else:
+                            ClosingBalance=0.00
+                    else:
+                        return JsonResponse({'StatusCode': 204, 'Status': True,'Message':'Stock Processing Needed', 'Data': []})
+                    
+                    MaterialRegisterList.append({"OpeningBalance":OpeningBalance,"ClosingBalance":ClosingBalance})
+                    return JsonResponse({'StatusCode': 200, 'Status': True,'Message':'', 'Data': MaterialRegisterList})
+                else:
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Records Not available ', 'Data': []})  
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})        
+        
+        
+        
+        
+                
+

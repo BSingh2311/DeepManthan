@@ -38,13 +38,30 @@ def get_client_ip(request):
         ip = request.META.get('REMOTE_ADDR')
     return ip
 
-def create_transaction_log(request,data,User, PartyID,TransactionDetails):
+def create_transaction_log(request,data,User, PartyID,TransactionDetails,TransactionType=0,TransactionID=0):
     
    
     log_entry = Transactionlog.objects.create(
         TranasactionDate=date.today(),
-        User=User,PartyID=PartyID,IPaddress=get_client_ip(request),TransactionDetails=TransactionDetails,JsonData=data
+        User=User,PartyID=PartyID,IPaddress=get_client_ip(request),TransactionDetails=TransactionDetails,JsonData=data,TransactionType=TransactionType,TransactionID=TransactionID
     )
+    return log_entry
+
+def create_transaction_logNew(request,data,PartyID,TransactionDetails,TransactionType=0,TransactionID=0, FromDate=0,ToDate=0,CustomerID=0):
+    
+    Authenticated_User = request.user
+    User = Authenticated_User.id
+    if not FromDate :
+        log_entry = Transactionlog.objects.create(
+            TranasactionDate=date.today(),
+            User=User,PartyID=PartyID,IPaddress=get_client_ip(request),TransactionDetails=TransactionDetails,JsonData=data,TransactionType=TransactionType,TransactionID=TransactionID, CustomerID=CustomerID
+        )
+    else:
+        log_entry = Transactionlog.objects.create(
+            TranasactionDate=date.today(),
+            User=User,PartyID=PartyID,IPaddress=get_client_ip(request),TransactionDetails=TransactionDetails,JsonData=data,TransactionType=TransactionType,TransactionID=TransactionID, FromDate=FromDate, ToDate=ToDate, CustomerID=CustomerID
+        )
+
     return log_entry
 
 
@@ -79,7 +96,6 @@ def UnitDropdown(ItemID,PartyForRate,BatchID=0):
             "Rate" : round(Rate,2),
             "BaseUnitQuantityNoUnit":q0[0]["BaseUnitQuantity"],
             
-
         })
     return UnitDetails
 
@@ -265,10 +281,10 @@ class DiscountMaster:
         
         D = Q(FromDate__lte=self.EffectiveDate) & Q(ToDate__gte=self.EffectiveDate)
         ItemDiscountdata = M_DiscountMaster.objects.filter(Item_id=self.ItemID,PriceList_id=self.PriceListID,Party=self.PartyID).filter(D).filter(P).values("DiscountType","Discount").order_by('-id')[:1]
-        
+        print(ItemDiscountdata.query)
         if not ItemDiscountdata:
             
-            ItemDiscountdata = M_DiscountMaster.objects.filter(Item_id=self.ItemID,PriceList_id=self.PriceListID,Party=self.PartyID).filter(D).values("DiscountType","Discount").order_by('-id')[:1]
+            ItemDiscountdata = M_DiscountMaster.objects.filter(Item_id=self.ItemID,PriceList_id=self.PriceListID,Party=self.PartyID,Customer_id__isnull=True).filter(D).values("DiscountType","Discount").order_by('-id')[:1]
             
         
         if ItemDiscountdata:
@@ -614,8 +630,8 @@ class RateCalculationFunction:
         RateDetails.append({
             "RatewithGST":RatewithGST,
             "RateWithoutGST": RateWithoutGST,
-            "NoRatewithGST" :RoundedGSTRate,
-            "NoRatewithOutGST" :RatewithoutGST
+            "NoRatewithGST" :round(RoundedGSTRate,2),
+            "NoRatewithOutGST" :round(RatewithoutGST,2)
         })
         
         
