@@ -12,6 +12,8 @@ from ..Serializer.S_GSTHSNCode import *
 from ..Serializer.S_GSTHSNCode import *
 from ..models import *
 from datetime import date
+from ..models import TransactionLogJsonData 
+
 
 
 '''Common Functions List
@@ -51,17 +53,25 @@ def create_transaction_logNew(request,data,PartyID,TransactionDetails,Transactio
     
     Authenticated_User = request.user
     User = Authenticated_User.id
+
+    if not User:
+        User = data['UserID']
+    else:
+        pass
+
     if not FromDate :
         log_entry = Transactionlog.objects.create(
             TranasactionDate=date.today(),
-            User=User,PartyID=PartyID,IPaddress=get_client_ip(request),TransactionDetails=TransactionDetails,JsonData=data,TransactionType=TransactionType,TransactionID=TransactionID, CustomerID=CustomerID
+            User=User,PartyID=PartyID,IPaddress=get_client_ip(request),TransactionDetails=TransactionDetails,JsonData=0,TransactionType=TransactionType,TransactionID=TransactionID, CustomerID=CustomerID
         )
     else:
         log_entry = Transactionlog.objects.create(
             TranasactionDate=date.today(),
-            User=User,PartyID=PartyID,IPaddress=get_client_ip(request),TransactionDetails=TransactionDetails,JsonData=data,TransactionType=TransactionType,TransactionID=TransactionID, FromDate=FromDate, ToDate=ToDate, CustomerID=CustomerID
+            User=User,PartyID=PartyID,IPaddress=get_client_ip(request),TransactionDetails=TransactionDetails,JsonData=0,TransactionType=TransactionType,TransactionID=TransactionID, FromDate=FromDate, ToDate=ToDate, CustomerID=CustomerID
         )
 
+    TransactionLogJsonData.objects.create(Transactionlog=log_entry, JsonData=data)
+    
     return log_entry
 
 
@@ -95,6 +105,7 @@ def UnitDropdown(ItemID,PartyForRate,BatchID=0):
             "SODefaultUnit": d['SODefaultUnit'],
             "Rate" : round(Rate,2),
             "BaseUnitQuantityNoUnit":q0[0]["BaseUnitQuantity"],
+            "DeletedMCUnitsUnitID":d['UnitID']['id'],
             
         })
     return UnitDetails
@@ -191,9 +202,6 @@ class MRPMaster:
         # print(str(TodayDateItemMRPdata.query))
         
         
-        
-        
-        
         if TodayDateItemMRPdata.exists():
             MRP_Serializer = M_MRPsSerializer(TodayDateItemMRPdata, many=True).data
             Mrpid = MRP_Serializer[0]['id']
@@ -281,7 +289,7 @@ class DiscountMaster:
         
         D = Q(FromDate__lte=self.EffectiveDate) & Q(ToDate__gte=self.EffectiveDate)
         ItemDiscountdata = M_DiscountMaster.objects.filter(Item_id=self.ItemID,PriceList_id=self.PriceListID,Party=self.PartyID).filter(D).filter(P).values("DiscountType","Discount").order_by('-id')[:1]
-        print(ItemDiscountdata.query)
+        # print(ItemDiscountdata.query)
         if not ItemDiscountdata:
             
             ItemDiscountdata = M_DiscountMaster.objects.filter(Item_id=self.ItemID,PriceList_id=self.PriceListID,Party=self.PartyID,Customer_id__isnull=True).filter(D).values("DiscountType","Discount").order_by('-id')[:1]
@@ -485,7 +493,8 @@ class UnitwiseQuantityConversion:
             else:
                 a=Q(id=MCItemUnit)   
             
-            BaseUnitQuantityQuery=MC_ItemUnits.objects.all().filter(Item=ItemID).filter( a ).filter( aaa ).select_related()
+            BaseUnitQuantityQuery=MC_ItemUnits.objects.all().filter(Item=ItemID).filter( a ).select_related() #.filter( aaa )
+         
             BaseUnitQuantitySerializer=ItemUnitsSerializer(BaseUnitQuantityQuery, many=True).data
             unitnamequery=M_Units.objects.filter(id =BaseUnitQuantitySerializer[0]['UnitID']).select_related().values('Name')
             self.UnitName  = unitnamequery[0]['Name']
@@ -585,7 +594,7 @@ class RateCalculationFunction:
         else:
                 a=Q(id=MCItemUnit)   
             
-        q3SelectedUnit=MC_ItemUnits.objects.filter(Item=ItemID,IsDeleted=0).filter( a ).values('BaseUnitQuantity')
+        q3SelectedUnit=MC_ItemUnits.objects.filter(Item=ItemID).filter( a ).values('BaseUnitQuantity') #IsDeleted=0
        
         q3NoUnit=MC_ItemUnits.objects.filter(Item=ItemID,IsDeleted=0,UnitID=1).values('BaseUnitQuantity')
         
@@ -669,6 +678,37 @@ class GetPartyAddressDetails:
         
         
         
-        
- 
-        
+def ValidationFunForStockTransactions(PartyID, ItemID, TransactionDate) :
+
+    q=L_TransactionDateLog.objects.raw('''select 1 as id,StockAdjustmentDate from L_TransactionDateLog where Item=%s and Party=%s ''',([ItemID],[PartyID]))
+    for row in q:
+        StockAdjustmentDate = row.StockAdjustmentDate
+    
+    print(StockAdjustmentDate,TransactionDate)
+    if StockAdjustmentDate  >= TransactionDate:
+        print('55555')
+        return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Transaction not allowed', 'Data': []})
+    else:
+        print('6666')
+        pass
+
+def TransactionDateLogFun(PartyID, ItemID, inputTransactionDate,inputStockAdjustmentDate):
+    q=L_TransactionDateLog.objects.raw('''select id,OldestTrnDate,NewestTrnDate,StockAdjustmentDate from L_TransactionDateLog where Item=%s and Party=%s ''',([ItemID],[PartyID]))
+    
+    if q:
+        for row in q:
+            OldestTrnDate = row.OldestTrnDate
+            NewestTrnDate = row.NewestTrnDate
+            StockAdjustmentDate = row.StockAdjustmentDate
+            if not StockAdjustmentDate:
+                pass
+
+
+
+    
+    
+    
+    
+    
+    else:
+        q1=L_TransactionDateLog.objects.create(OldestTrnDate=inputTransactionDate, NewestTrnDate=inputTransactionDate, StockAdjustmentDate=inputStockAdjustmentDate, Party=PartyID, Item=ItemID)               

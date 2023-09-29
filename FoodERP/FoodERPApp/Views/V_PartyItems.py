@@ -55,14 +55,22 @@ class PartyItemsFilterView(CreateAPIView):
                 if IsSCMCompany == 1:
                     Itemquery= MC_PartyItems.objects.raw('''SELECT distinct M_Items.id,M_Items.Name,ifnull(MC_PartyItems.Party_id,0) Party_id,ifnull(M_Parties.Name,'') PartyName,ifnull(M_GroupType.Name,'') GroupTypeName,ifnull(M_Group.Name,'') GroupName,ifnull(MC_SubGroup.Name,'') SubGroupName FROM M_Items JOIN M_ChannelWiseItems ON M_ChannelWiseItems.Item_id=M_Items.id  LEFT JOIN MC_PartyItems ON MC_PartyItems.Item_id=M_ChannelWiseItems.Item_id AND MC_PartyItems.Party_id=%s LEFT JOIN M_Parties ON M_Parties.id=MC_PartyItems.Party_id LEFT JOIN MC_ItemGroupDetails ON MC_ItemGroupDetails.Item_id = M_Items.id LEFT JOIN M_GroupType ON M_GroupType.id = MC_ItemGroupDetails.GroupType_id LEFT JOIN M_Group ON M_Group.id  = MC_ItemGroupDetails.Group_id LEFT JOIN MC_SubGroup ON MC_SubGroup.id  = MC_ItemGroupDetails.SubGroup_id WHERE IsSCM=1 AND M_Items.Company_id IN (select id from C_Companies where CompanyGroup_id=%s) AND M_ChannelWiseItems.PartyType_id IN (SELECT distinct M_Parties.PartyType_id FROM MC_PartySubParty JOIN M_Parties ON M_Parties.id = MC_PartySubParty.SubParty_id WHERE (MC_PartySubParty.Party_id=%s OR SubParty_id=%s))  order by M_Group.id, MC_SubGroup.id ''',([PartyID],[CompanyGroupID],[PartyID],[PartyID]))
                 else:
-                    Itemquery= MC_PartyItems.objects.raw('''SELECT M_Items.id,M_Items.Name,ifnull(MC_PartyItems.Party_id,0) Party_id,ifnull(M_Parties.Name,'') PartyName,ifnull(M_GroupType.Name,'') GroupTypeName,ifnull(M_Group.Name,'') GroupName,ifnull(MC_SubGroup.Name,'') SubGroupName from M_Items JOIN M_ChannelWiseItems ON M_ChannelWiseItems.Item_id=M_Items.id  left JOIN MC_PartyItems ON MC_PartyItems.Item_id=M_ChannelWiseItems.Item_id AND MC_PartyItems.Party_id=%s left JOIN M_Parties ON M_Parties.id=MC_PartyItems.Party_id left JOIN MC_ItemGroupDetails ON MC_ItemGroupDetails.Item_id = M_Items.id left JOIN M_GroupType ON M_GroupType.id = MC_ItemGroupDetails.GroupType_id left JOIN M_Group ON M_Group.id  = MC_ItemGroupDetails.Group_id left JOIN MC_SubGroup ON MC_SubGroup.id  = MC_ItemGroupDetails.SubGroup_id where M_Items.Company_id =%s order by M_Group.id, MC_SubGroup.id''',([PartyID],[CompanyID]))
+                    Itemquery= MC_PartyItems.objects.raw('''SELECT distinct M_Items.id,M_Items.Name,ifnull(MC_PartyItems.Party_id,0) Party_id,ifnull(M_Parties.Name,'') PartyName,ifnull(M_GroupType.Name,'') GroupTypeName,ifnull(M_Group.Name,'') GroupName,ifnull(MC_SubGroup.Name,'') SubGroupName from M_Items JOIN M_ChannelWiseItems ON M_ChannelWiseItems.Item_id=M_Items.id  left JOIN MC_PartyItems ON MC_PartyItems.Item_id=M_ChannelWiseItems.Item_id AND MC_PartyItems.Party_id=%s left JOIN M_Parties ON M_Parties.id=MC_PartyItems.Party_id left JOIN MC_ItemGroupDetails ON MC_ItemGroupDetails.Item_id = M_Items.id left JOIN M_GroupType ON M_GroupType.id = MC_ItemGroupDetails.GroupType_id left JOIN M_Group ON M_Group.id  = MC_ItemGroupDetails.Group_id left JOIN MC_SubGroup ON MC_SubGroup.id  = MC_ItemGroupDetails.SubGroup_id where M_Items.Company_id =%s order by M_Group.id, MC_SubGroup.id''',([PartyID],[CompanyID]))
+                
                 if not Itemquery:
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Items Not available', 'Data': []})
                 else:
+            
                     Items_Serializer = MC_PartyItemSerializerSingleGet(
                         Itemquery, many=True).data
                     ItemList = list()
                     for a in Items_Serializer:
+                        query=O_BatchWiseLiveStock.objects.filter(Item=a['id'],Party=PartyID,BaseUnitQuantity__gt=0)
+                        if query.exists():
+                            InStock = True
+                        else:
+                            InStock=False    
+                            
                         ItemList.append({
                             "Item": a['id'],
                             "ItemName": a['Name'],
@@ -71,6 +79,7 @@ class PartyItemsFilterView(CreateAPIView):
                             "GroupTypeName": a['GroupTypeName'],
                             "GroupName": a['GroupName'], 
                             "SubGroupName": a['SubGroupName'],
+                            "InStock":InStock
                         })
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': ItemList})
         except Exception as e:
@@ -167,14 +176,13 @@ order by M_Group.id, MC_SubGroup.id''',([PartyTypeID],[CompanyID]))
                         Itemquery, many=True).data
                     ItemList = list()
                     for a in ItemsList_Serializer:
-                      
-                        # Query to retrieve PartyType_id values
-                        party_ids = MC_PartyItems.objects.filter(Item_id=a['id']).values_list('Party_id', flat=True)
-                        # Get unique PartyType_id values using a set
-                        distinct_party_types = set(M_Parties.objects.filter(id__in=party_ids).values_list('PartyType_id', flat=True))
-                        # Check if PartyTypeID exists in distinct_party_types
-                        Flag = PartyTypeID in distinct_party_types
-                                
+                        
+                        count= MC_PartyItems.objects.filter(Item_id=a['id']).count()
+                        if count > 0:
+                            Flag = True
+                        else:
+                            Flag = False 
+                              
                         ItemList.append({
                             "Item": a['id'],
                             "ItemName": a['Name'],
@@ -188,7 +196,6 @@ order by M_Group.id, MC_SubGroup.id''',([PartyTypeID],[CompanyID]))
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': ItemList})
         except Exception as e:
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
-        
         
         
 class CheckPartiesInChanelWiseItemsList(CreateAPIView):

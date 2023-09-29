@@ -1659,7 +1659,7 @@ class TC_CreditDebitNoteItems(models.Model):
         db_table = "TC_CreditDebitNoteItems" 
 
 class TC_CreditDebitNoteUploads(models.Model):
-    CRDRNote = models.ForeignKey(T_CreditDebitNotes,related_name='CRDRNoteUploads',on_delete=models.CASCADE,null=True,blank=True)
+    CRDRNote = models.ForeignKey(T_CreditDebitNotes,related_name='CRDRNoteUploads',on_delete=models.PROTECT,null=True,blank=True)
     AckNo =  models.CharField(max_length=500,null=True)  
     Irn =  models.CharField(max_length=500,null=True)
     QRCodeUrl =models.CharField(max_length=500,null=True)
@@ -1764,7 +1764,10 @@ class T_Stock(models.Model):
     Party = models.ForeignKey(M_Parties, related_name='StockParty', on_delete=models.PROTECT)
     CreatedBy = models.IntegerField()
     CreatedOn = models.DateTimeField(auto_now_add=True)
-   
+    IsSaleable= models.BooleanField(default=False)
+    BatchCode = models.CharField(max_length=500,blank=True,null=True)
+    BatchCodeID = models.CharField(max_length=500,blank=True,null=True)
+    Difference = models.DecimalField(max_digits=20, decimal_places=2,blank=True,null=True)
     class Meta:
         db_table="T_Stock"        
                 
@@ -2099,22 +2102,48 @@ class TC_DeletedInvoicesReferences(models.Model):
 class M_ChannelWiseItems(models.Model):
     Item = models.ForeignKey(M_Items,related_name='ChannelItem', on_delete=models.PROTECT)
     PartyType =models.ForeignKey(M_PartyType, related_name='ChannelPartyType', on_delete=models.PROTECT) 
-
-
     class Meta:
         db_table = "M_ChannelWiseItems"        
         
         
-                                      
-   
-                        
-         
-   
-       
+class TransactionLogJsonData(models.Model):
+    Transactionlog = models.ForeignKey(Transactionlog,related_name='Transactionlog', on_delete=models.CASCADE)
+    JsonData = models.TextField(blank = True)
+    class Meta:
+        db_table = "TransactionLogJsonData"       
 
+class L_TransactionDateLog(models.Model):
+    OldestTrnDate = models.DateField()
+    NewestTrnDate = models.DateField()
+    StockAdjustmentDate = models.DateField()
+    Party = models.IntegerField()
+    Item =models.IntegerField()
+    class Meta:
+        db_table = "L_TransactionDateLog"
         
         
-       
-
-
-       
+        
+class T_ClaimTrackingEntry(models.Model):
+    Date =  models.DateField()
+    Month =  models.CharField(max_length=500,null=True)  
+    Year = models.CharField(max_length=500,null=True) 
+    ClaimReceivedSource =  models.CharField(max_length=500,null=True) 
+    Type = models.IntegerField()
+    ClaimTrade = models.IntegerField()
+    TypeOfClaim = models.IntegerField(blank=True, null=True)
+    ClaimAmount =models.DecimalField(max_digits=20, decimal_places=2)
+    Remark = models.CharField(max_length=500,null=True) 
+    ClaimCheckBy =models.IntegerField()
+    CreditNotestatus =models.IntegerField()
+    CreditNoteNo = models.CharField(max_length=500,null=True) 	
+    CreditNoteDate = models.DateField()	
+    CreditNoteAmount	= models.DecimalField(max_digits=20, decimal_places=2)
+    ClaimSummaryDate = models.DateField()	
+    CreditNoteUpload = models.CharField(max_length=500,null=True)
+    Party = models.ForeignKey(M_Parties, related_name='ClaimTrackingParty', on_delete=models.PROTECT) 
+    FullClaimNo = models.CharField(max_length=500,blank=True, null=True) 
+    PartyType = models.ForeignKey(M_PartyType, related_name='ClaimTrackingPartyType', on_delete=models.PROTECT,blank=True, null=True)
+    Claim = models.ForeignKey(M_Claim,related_name='ClaimTracking', on_delete=models.PROTECT,blank=True, null=True) 
+    class Meta:
+        db_table = "T_ClaimTrackingEntry"   
+	

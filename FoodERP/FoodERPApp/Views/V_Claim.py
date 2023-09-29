@@ -123,7 +123,7 @@ class MasterClaimView(CreateAPIView):
     FROM T_PurchaseReturn
     join TC_PurchaseReturnItems on T_PurchaseReturn.id=TC_PurchaseReturnItems.PurchaseReturn_id
     where IsApproved=1  and  T_PurchaseReturn.ReturnDate between %s and %s and Customer_id=%s and FinalApprovalDate is null''',([FromDate], [ToDate], [Party]))
-                print(q10.query)
+                # print(q10.query)
                 for row in q10:
                     count = row.cnt
                    
@@ -166,8 +166,8 @@ class MasterClaimView(CreateAPIView):
         join M_Parties on M_Parties.id=PRPS.Customer_id
         where T_PurchaseReturn.IsApproved=1 and M_Parties.PartyType_id=%s  and  T_PurchaseReturn.ReturnDate between %s and %s and T_PurchaseReturn.Customer_id=%s group by TC_PurchaseReturnItems.ItemReason_id)p ''',
                                                                                         ([FromDate], [ToDate], [Party], [FromDate], [ToDate], [Party], [PartyType], [FromDate], [ToDate], [Party]))
-                            print('==============================================')
-                            print(PartyType ,claimREasonwise.query)
+                            # print('==============================================')
+                            # print(PartyType ,claimREasonwise.query)
                             serializer = MasterclaimReasonReportSerializer(
                                 claimREasonwise, many=True).data
                         
@@ -246,7 +246,7 @@ class MasterClaimView(CreateAPIView):
         ''',
                                                                             ([Party], [FromDate], [ToDate], [Party], [FromDate], [ToDate], [Party], [FromDate], [ToDate], [Party]))
 
-                        print(StockProcessQuery.query)
+                        # print(StockProcessQuery.query)
                         serializer = MasterclaimReportSerializer(
                             StockProcessQuery, many=True).data
                     
@@ -348,7 +348,7 @@ on a.PartyID=b.Customer_id
 left join
 (select count(*)returncnt ,Customer_id from T_PurchaseReturn where T_PurchaseReturn.ReturnDate between %s and %s group by Customer_id )c
 on a.PartyID=c.Customer_id''',([Party],[Party],[FromDate],[ToDate],[FromDate],[ToDate]))
-                print(Claimlistquery.query)
+                # print(Claimlistquery.query)
                 if Claimlistquery:
                     
                     Claimlist = ClaimlistSerializer(Claimlistquery, many=True).data
@@ -357,3 +357,201 @@ on a.PartyID=c.Customer_id''',([Party],[Party],[FromDate],[ToDate],[FromDate],[T
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Data Not available ', 'Data': []})
         except Exception as e:
             return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Data Not available', 'Data': []})
+        
+        
+        
+class Listofclaimforclaimtracking(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    @transaction.atomic()
+    def post(self, request, id=0):
+        try:
+            with transaction.atomic():
+                ClaimTrackingdata = JSONParser().parse(request)
+                Year = ClaimTrackingdata['Year']
+                Month = ClaimTrackingdata['Month']
+                FromDate = Year+'-'+Month+'-'+'01'
+                Claimlistquery = M_Claim.objects.raw('''select MC_ReturnReasonwiseMasterClaim.Claim_id As id,SUM(MC_ReturnReasonwiseMasterClaim.ReturnAmount) As ClaimAmount, M_Parties.id As PartyID,M_Parties.Name PartyName,MC_ReturnReasonwiseMasterClaim.PartyType AS PartyTypeID,M_PartyType.Name AS PartyTypeName FROM M_Claim  JOIN MC_ReturnReasonwiseMasterClaim ON MC_ReturnReasonwiseMasterClaim.Claim_id=M_Claim.id  JOIN M_Parties ON M_Parties.id=M_Claim.Customer_id LEFT JOIN M_PartyType ON M_PartyType.id = MC_ReturnReasonwiseMasterClaim.PartyType WHERE M_Claim.FromDate =%s AND MC_ReturnReasonwiseMasterClaim.PartyType !=0  group by id,PartyID,PartyName,PartyType,PartyTypeName ''',([FromDate]))
+                # print(Claimlistquery.query)
+                if Claimlistquery:
+                    Claimlist = ClaimlistforClaimTrackingSerializer(Claimlistquery, many=True).data
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': Claimlist})
+                else:
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Data Not available ', 'Data': []})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Data Not available', 'Data': []})
+            
+
+class ClaimTrackingEntryListView(CreateAPIView):
+    
+    permission_classes = (IsAuthenticated,)
+
+    @transaction.atomic()
+    def post(self, request,id=0):
+        try:
+            with transaction.atomic():
+                ClaimTrackingdata = JSONParser().parse(request)
+                Year = ClaimTrackingdata['Year']
+                Month = ClaimTrackingdata['Month']
+                ClaimTrackingquery = T_ClaimTrackingEntry.objects.raw('''SELECT T_ClaimTrackingEntry.id, T_ClaimTrackingEntry.Date, T_ClaimTrackingEntry.Month, T_ClaimTrackingEntry.Year, ClaimReceivedSource, T_ClaimTrackingEntry.Type,a.Name TypeName, ClaimTrade,M_PriceList.Name ClaimTradeName,TypeOfClaim,b.Name TypeOfClaimName, ClaimAmount, Remark, ClaimCheckBy,c.Name As ClaimCheckByName,CreditNotestatus, d.Name As CreditNotestatusName, CreditNoteNo, CreditNoteDate, CreditNoteAmount, ClaimSummaryDate, CreditNoteUpload, Claim_id, Party_id,M_Parties.Name PartyName,T_ClaimTrackingEntry.FullClaimNo,T_ClaimTrackingEntry.PartyType_id,M_PartyType.Name PartyTypeName 
+FROM T_ClaimTrackingEntry
+LEFT JOIN M_PartyType ON M_PartyType.id= T_ClaimTrackingEntry.PartyType_id
+JOIN M_Parties ON M_Parties.id=T_ClaimTrackingEntry.Party_id
+JOIN M_GeneralMaster a ON a.id = T_ClaimTrackingEntry.Type
+LEFT JOIN M_GeneralMaster b ON b.id = T_ClaimTrackingEntry.TypeOfClaim
+JOIN M_GeneralMaster c ON c.id = T_ClaimTrackingEntry.ClaimCheckBy
+JOIN M_GeneralMaster d ON d.id = T_ClaimTrackingEntry.CreditNotestatus
+JOIN M_PriceList ON M_PriceList.id=T_ClaimTrackingEntry.ClaimTrade WHERE T_ClaimTrackingEntry.Year =%s AND T_ClaimTrackingEntry.Month =%s ''',([Year],[Month]))
+                # print(ClaimTrackingquery.query)
+                if ClaimTrackingquery :
+                    # return JsonResponse({'query':  str(Itemsquery.query)})
+                    ClaimTrackingdata = ClaimTrackingSerializerSecond(ClaimTrackingquery, many=True).data
+                    ClaimTrackingList=list()
+                    for a in ClaimTrackingdata:
+                        ClaimTrackingList.append({
+                            "id": a['id'],
+                            "Date": a['Date'],
+                            "Month": a['Month'],
+                            "Year": a['Year'],
+                            "ClaimReceivedSource": a['ClaimReceivedSource'],
+                            "Type": a['Type'],
+                            "TypeName": a['TypeName'],
+                            "ClaimTrade": a['ClaimTrade'],
+                            "ClaimTradeName": a['ClaimTradeName'],
+                            "TypeOfClaim": a['TypeOfClaim'],
+                            "TypeOfClaimName": a['TypeOfClaimName'],                           
+                            "ClaimAmount": a['ClaimAmount'],
+                            "Remark": a['Remark'],
+                            "ClaimCheckBy": a['ClaimCheckBy'],
+                            "ClaimCheckByName": a['ClaimCheckByName'],
+                            "CreditNotestatus": a['CreditNotestatus'],
+                            "CreditNotestatusName": a['CreditNotestatusName'],
+                            "CreditNoteNo": a['CreditNoteNo'],
+                            "CreditNoteDate": a['CreditNoteDate'],
+                            "CreditNoteAmount": a['CreditNoteAmount'],
+                            "ClaimSummaryDate": a['ClaimSummaryDate'],
+                            "CreditNoteUpload": a['CreditNoteUpload'],
+                            "Claim": a['Claim_id'],
+                            "Party": a['Party_id'],
+                            "PartyName": a['PartyName'],
+                            "FullClaimNo":a['FullClaimNo'],
+                            "PartyType":a['PartyType_id'],
+                            "PartyTypeName": a['PartyTypeName']
+                        })
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': ClaimTrackingList})
+                return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Claim Tracking Entry Not available ', 'Data': []})
+        except T_ClaimTrackingEntry.DoesNotExist:
+            return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Claim Tracking Entry Not available', 'Data': []})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
+
+
+class ClaimTrackingEntryView(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    @transaction.atomic()
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                Claimtracking_data = JSONParser().parse(request)
+                Claimtracking_Serializer = ClaimTrackingSerializer(data=Claimtracking_data)
+                if Claimtracking_Serializer.is_valid():
+                    Claimtracking_Serializer.save()
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Claim Tracking Entry Save Successfully', 'Data':[]})
+                else:
+                    transaction.set_rollback(True)
+                    return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':  Claimtracking_Serializer.errors, 'Data':[]})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
+            
+
+class ClaimTrackingEntryViewSecond(CreateAPIView):
+
+    permission_classes = (IsAuthenticated,)
+    # authentication_class = JSONWebTokenAuthentication
+    
+    @transaction.atomic()
+    def get(self, request,id=0):
+        try:
+            with transaction.atomic():
+                ClaimTrackingquery = T_ClaimTrackingEntry.objects.raw('''SELECT T_ClaimTrackingEntry.id, T_ClaimTrackingEntry.Date, T_ClaimTrackingEntry.Month, T_ClaimTrackingEntry.Year, ClaimReceivedSource, T_ClaimTrackingEntry.Type,a.Name TypeName, ClaimTrade,M_PriceList.Name ClaimTradeName,TypeOfClaim,b.Name TypeOfClaimName, ClaimAmount, Remark, ClaimCheckBy,c.Name As ClaimCheckByName,CreditNotestatus, d.Name As CreditNotestatusName, CreditNoteNo, CreditNoteDate, CreditNoteAmount, ClaimSummaryDate, CreditNoteUpload, Claim_id, Party_id,M_Parties.Name PartyName,T_ClaimTrackingEntry.FullClaimNo,T_ClaimTrackingEntry.PartyType_id,M_PartyType.Name PartyTypeName  
+FROM T_ClaimTrackingEntry
+LEFT JOIN M_PartyType ON M_PartyType.id = T_ClaimTrackingEntry.PartyType_id 
+JOIN M_Parties ON M_Parties.id=T_ClaimTrackingEntry.Party_id
+JOIN M_GeneralMaster a ON a.id = T_ClaimTrackingEntry.Type
+LEFT JOIN M_GeneralMaster b ON b.id = T_ClaimTrackingEntry.TypeOfClaim
+JOIN M_GeneralMaster c ON c.id = T_ClaimTrackingEntry.ClaimCheckBy
+JOIN M_GeneralMaster d ON d.id = T_ClaimTrackingEntry.CreditNotestatus
+JOIN M_PriceList ON M_PriceList.id=T_ClaimTrackingEntry.ClaimTrade WHERE T_ClaimTrackingEntry.id = %s ''',([id]))
+                # print(ClaimTrackingquery.query)
+                if ClaimTrackingquery :
+                    ClaimTrackingdata = ClaimTrackingSerializerSecond(ClaimTrackingquery, many=True).data
+                    ClaimTrackingList=list()
+                    for a in ClaimTrackingdata:
+                        ClaimTrackingList.append({
+                            "id": a['id'],
+                            "Date": a['Date'],
+                            "Month": a['Month'],
+                            "Year": a['Year'],
+                            "ClaimReceivedSource": a['ClaimReceivedSource'],
+                            "Type": a['Type'],
+                            "TypeName": a['TypeName'],
+                            "ClaimTrade": a['ClaimTrade'],
+                            "ClaimTradeName": a['ClaimTradeName'],
+                            "TypeOfClaim": a['TypeOfClaim'],
+                            "TypeOfClaimName": a['TypeOfClaimName'],                           
+                            "ClaimAmount": a['ClaimAmount'],
+                            "Remark": a['Remark'],
+                            "ClaimCheckBy": a['ClaimCheckBy'],
+                            "ClaimCheckByName": a['ClaimCheckByName'],
+                            "CreditNotestatus": a['CreditNotestatus'],
+                            "CreditNotestatusName": a['CreditNotestatusName'],
+                            "CreditNoteNo": a['CreditNoteNo'],
+                            "CreditNoteDate": a['CreditNoteDate'],
+                            "CreditNoteAmount": a['CreditNoteAmount'],
+                            "ClaimSummaryDate": a['ClaimSummaryDate'],
+                            "CreditNoteUpload": a['CreditNoteUpload'],
+                            "Claim": a['Claim_id'],
+                            "Party": a['Party_id'],
+                            "PartyName": a['PartyName'],
+                            "FullClaimNo":a['FullClaimNo'],
+                            "PartyType":a['PartyType_id'],
+                            "PartyTypeName": a['PartyTypeName']
+                        })
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': ClaimTrackingList[0]})
+                return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Claim Tracking Entry Not available ', 'Data': []})
+        except T_ClaimTrackingEntry.DoesNotExist:
+            return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Claim Tracking Entry Not available', 'Data': []})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
+
+
+    @transaction.atomic()
+    def put(self, request, id=0):
+        try:
+            with transaction.atomic():
+                Claimtrackingdata = JSONParser().parse(request)
+                ClaimtrackingdataByID = T_ClaimTrackingEntry.objects.get(id=id)
+                Claimtrackingdata_Serializer = ClaimTrackingSerializer(
+                    ClaimtrackingdataByID, data=Claimtrackingdata)
+                if Claimtrackingdata_Serializer.is_valid():
+                    Claimtrackingdata_Serializer.save()
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Claim Tracking Entry Updated Successfully', 'Data':[]})
+                else:
+                    transaction.set_rollback(True)
+                    return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': Claimtrackingdata_Serializer.errors, 'Data':[]})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
+        
+
+    @transaction.atomic()
+    def delete(self, request, id=0):
+        try:
+            with transaction.atomic():
+                Claimtrackingdata = T_ClaimTrackingEntry.objects.get(id=id)
+                Claimtrackingdata.delete()
+                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Claim Tracking Entry Deleted Successfully', 'Data':[]})
+        except T_ClaimTrackingEntry.DoesNotExist:
+            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':'Claim Tracking Entry Not available', 'Data': []})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})  
+
+                       

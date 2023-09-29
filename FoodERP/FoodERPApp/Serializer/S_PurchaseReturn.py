@@ -69,14 +69,14 @@ class PurchaseReturnSerializer(serializers.ModelSerializer):
         
         for ReturnItem_data in ReturnItems_data:
             ReturnItemImages_data = ReturnItem_data.pop('ReturnItemImages')
+        
             ReturnItemID =TC_PurchaseReturnItems.objects.create(PurchaseReturn=PurchaseReturnID, **ReturnItem_data)
             if(Mode == 1 or Mode ==2):
                 a=match = re.search(r'\((\d+)\)', str(ReturnItemID))
                 number = match.group(1)
-                print(number) 
+               
                 UpdateReturnItemID=TC_PurchaseReturnItems.objects.filter(id=number).update(primarySourceID=number)
 
-            
             for ReturnItemImage_data in ReturnItemImages_data:
                 ItemImages =TC_PurchaseReturnItemImages.objects.create(PurchaseReturnItem=ReturnItemID, **ReturnItemImage_data)
         
@@ -171,7 +171,6 @@ class PurchaseReturnItemsSerializer(serializers.ModelSerializer):
         model= TC_PurchaseReturnItems
         fields = '__all__'
 
-    
 class PurchaseReturnSerializerThird(serializers.ModelSerializer):
     ReturnItems = PurchaseReturnItemsSerializer(read_only=True,many=True)
     class Meta :
@@ -189,7 +188,6 @@ class PurchaseReturnItemsSerializer2(serializers.ModelSerializer):
         
 
 ###################### Purchase Return Print Serializers ########################################## 
-
 
 class StateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -258,13 +256,13 @@ class ReturnApproveQtySerializer(serializers.ModelSerializer):
         fields = ['O_LiveBatchesList','ReturnItem']
     
     def create(self, validated_data):
-        print(validated_data)
+        # print(validated_data)
         
         ReturnItem_data=validated_data.pop('ReturnItem')
         O_LiveBatchesLists_data=validated_data.pop('O_LiveBatchesList')
         
         for ReturnItem in ReturnItem_data:
-            print(ReturnItem["primarySourceID"],ReturnItem["ApprovedByCompany"])
+            # print(ReturnItem["primarySourceID"],ReturnItem["ApprovedByCompany"])
             # Approved=TC_PurchaseReturnItems.objects.filter(id=ReturnItem["primarySourceID"]).update(ApprovedByCompany=ReturnItem["ApprovedByCompany"],FinalApprovalDate=ReturnItem["FinalApprovalDate"],primarySourceID=ReturnItem["primarySourceID"])
             
             if ReturnItem["ApprovedByCompany"] is not None:
@@ -274,15 +272,15 @@ class ReturnApproveQtySerializer(serializers.ModelSerializer):
                     
                     ApprovedRate  = b["Rate"]
                     ApprovedBasicAmount = round(b["Rate"] * ReturnItem["ApprovedByCompany"],2)
-                    print(b['DiscountType'],'kkkkkkkkkkkk')
+                    # print(b['DiscountType'],'kkkkkkkkkkkk')
                     if b['DiscountType'] == '2': 
-                        print('2"""""""2"2"""')
+                        # print('2"""""""2"2"""')
                         disCountAmt = ApprovedBasicAmount - (ApprovedBasicAmount / ((100 + b['Discount']) / 100)) 
                     else:
-                        print('11!!!!!!!!!!!!!',b['Discount'])
+                        # print('11!!!!!!!!!!!!!',b['Discount'])
                         disCountAmt =  ReturnItem["ApprovedByCompany"] * b['Discount']
                     
-                    print(disCountAmt)
+                    # print(disCountAmt)
                     ApprovedDiscountAmount = round(disCountAmt,2)
                     ApprovedBasicAmount= ApprovedBasicAmount-disCountAmt
                     

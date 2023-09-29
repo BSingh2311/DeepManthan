@@ -30,6 +30,7 @@ class StockEntryPageView(CreateAPIView):
                 Party = StockEntrydata['PartyID']
                 CreatedBy = StockEntrydata['CreatedBy']
                 StockDate = StockEntrydata['Date']
+                Mode =  StockEntrydata['Mode']
               
                 O_BatchWiseLiveStockList=list()
                 O_LiveBatchesList=list()
@@ -40,7 +41,18 @@ class StockEntryPageView(CreateAPIView):
                     BatchCode = SystemBatchCodeGeneration.GetGrnBatchCode(a['Item'], Party,0)
                     UnitwiseQuantityConversionobject=UnitwiseQuantityConversion(a['Item'],a['Quantity'],a['Unit'],0,0,0,0)
                     BaseUnitQuantity=UnitwiseQuantityConversionobject.GetBaseUnitQuantity()
+                    Item=a['Item']
+                    if Mode == 1:
+                        query3 = O_BatchWiseLiveStock.objects.filter(Item_id=Item,Party_id=Party).aggregate(total=Sum('BaseUnitQuantity'))
+                    else:
+                        query3 = O_BatchWiseLiveStock.objects.filter(Item_id=Item,Party_id=Party,id=a['BatchCodeID']).aggregate(total=Sum('BaseUnitQuantity'))
+                  
+                    if query3['total']:
+                        totalstock=float(query3['total'])
+                    else:
+                        totalstock=0    
                     
+                    print(query3)
                     a['SystemBatchCode'] = BatchCode
                     a['SystemBatchDate'] = date.today()
                     a['BaseUnitQuantity'] = round(BaseUnitQuantity,3)
@@ -54,6 +66,7 @@ class StockEntryPageView(CreateAPIView):
                     "Party": Party,
                     "CreatedBy":CreatedBy,
                     
+                    
                     })
                     
                     T_StockEntryList.append({
@@ -66,6 +79,10 @@ class StockEntryPageView(CreateAPIView):
                     "MRP": a['MRP'],
                     "Party": Party,
                     "CreatedBy":CreatedBy,
+                    "BatchCode" : a['BatchCode'],
+                    "BatchCodeID" : a['BatchCodeID'],
+                    "IsSaleable" : 1,
+                    "Difference" : totalstock-round(BaseUnitQuantity,3)
                     })
                     
                     O_LiveBatchesList.append({
@@ -79,6 +96,7 @@ class StockEntryPageView(CreateAPIView):
                     "SystemBatchCode": a['SystemBatchCode'],
                     "BatchDate": a['BatchDate'],
                     "BatchCode": a['BatchCode'],
+                    "Mode" :Mode,
                     "OriginalBatchBaseUnitQuantity" : round(BaseUnitQuantity,3),
                     "O_BatchWiseLiveStockList" :O_BatchWiseLiveStockList, 
                     "T_StockEntryList" :T_StockEntryList                   
@@ -89,19 +107,27 @@ class StockEntryPageView(CreateAPIView):
                     T_StockEntryList=list()
                 
                 StockEntrydata.update({"O_LiveBatchesList":O_LiveBatchesList})
+                if(Mode == 1):   # Stock Entry case update 0 to all stock for given party
+                    
+                    OBatchWiseLiveStock=O_BatchWiseLiveStock.objects.filter(Party=Party).update(BaseUnitQuantity=0)
                 
-                OBatchWiseLiveStock=O_BatchWiseLiveStock.objects.filter(Party=Party).update(BaseUnitQuantity=0)
                 for aa in StockEntrydata['O_LiveBatchesList']:
-                
-                    StockEntry_OLiveBatchesSerializer = PartyStockEntryOLiveBatchesSerializer(data=aa)
+                  
+                    if(Mode == 1):
+                        StockEntry_OLiveBatchesSerializer = PartyStockEntryOLiveBatchesSerializer(data=aa)
+                    else:
+                        StockEntry_OLiveBatchesSerializer = PartyStockAdjustmentOLiveBatchesSerializer(data=aa)
+                    
+                    
                     if StockEntry_OLiveBatchesSerializer.is_valid():
-                        Stock = StockEntry_OLiveBatchesSerializer.save()
-                        LastInsertID = Stock.id
+                        StockEntry_OLiveBatchesSerializer.save()
+                        
+                        pass
                     else:
                         log_entry = create_transaction_logNew(request, StockEntrydata, 0, StockEntry_OLiveBatchesSerializer.errors,34,0)
                         transaction.set_rollback(True)
                         return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': StockEntry_OLiveBatchesSerializer.errors, 'Data': []})
-                log_entry = create_transaction_logNew(request, StockEntrydata, Party,"Party Stock Entry Save Successfully",87,LastInsertID)
+                log_entry = create_transaction_logNew(request, StockEntrydata, Party,'',87,0)
                 return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Party Stock Entry Save Successfully', 'Data': []})
         except Exception as e:
             log_entry = create_transaction_logNew(request, StockEntrydata, 0,  Exception(e),33,0)
@@ -127,7 +153,7 @@ class ShowOBatchWiseLiveStockView(CreateAPIView):
                 Itemquery= MC_PartyItems.objects.raw('''SELECT M_Items.id,M_Items.Name,ifnull(MC_PartyItems.Party_id,0) Party_id,ifnull(M_Parties.Name,'') PartyName,ifnull(M_GroupType.Name,'') GroupTypeName,ifnull(M_Group.Name,'') GroupName,ifnull(MC_SubGroup.Name,'') SubGroupName from M_Items JOIN MC_PartyItems ON MC_PartyItems.item_id=M_Items.id left JOIN M_Parties ON M_Parties.id=MC_PartyItems.Party_id left JOIN MC_ItemGroupDetails ON MC_ItemGroupDetails.Item_id = M_Items.id left JOIN M_GroupType ON M_GroupType.id = MC_ItemGroupDetails.GroupType_id left JOIN M_Group ON M_Group.id  = MC_ItemGroupDetails.Group_id left JOIN MC_SubGroup ON MC_SubGroup.id  = MC_ItemGroupDetails.SubGroup_id where MC_PartyItems.Party_id=%s  order by M_Group.id, MC_SubGroup.id''',([Party]))
                 # print(str(Itemquery.query))
                 if not Itemquery:
-                    log_entry = create_transaction_logNew(request, StockReportdata, 0, Party, "Data Not available",7,0)
+                    log_entry = create_transaction_logNew(request, StockReportdata, 0, Party, "BatchWiseLiveStock Not available",88,0)
                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':  'Items Not available', 'Data': []})
                 else:
                     Items_Serializer = MC_PartyItemSerializerSingleGet(
@@ -135,7 +161,7 @@ class ShowOBatchWiseLiveStockView(CreateAPIView):
                     ItemList = list()
                     for a in Items_Serializer:
                         ActualQty='00.00'
-                        stockquery = O_BatchWiseLiveStock.objects.filter(Item=a['id'], Party=Party).aggregate(Qty=Sum('BaseUnitQuantity'))
+                        stockquery = O_BatchWiseLiveStock.objects.filter(Item=a['id'], Party=Party,IsDamagePieces=0).aggregate(Qty=Sum('BaseUnitQuantity'))
                    
                         if stockquery['Qty'] is None:
                             Stock = 0.0
@@ -163,7 +189,7 @@ class ShowOBatchWiseLiveStockView(CreateAPIView):
                             "ActualQty":round(ActualQty,3),
                             "Unit":StockUnit 
                         })
-                    log_entry = create_transaction_logNew(request, StockReportdata, Party, "PartyLiveStock List",88,0,FromDate,ToDate,0)
+                    log_entry = create_transaction_logNew(request, StockReportdata, Party, 'From:'+FromDate+','+'To:'+ToDate,88,0,FromDate,ToDate,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True,  'Message':'', 'Data': ItemList})     
         except Exception as e:
             log_entry = create_transaction_logNew(request, StockReportdata, 0, Exception(e),33,0)

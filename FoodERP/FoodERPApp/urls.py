@@ -139,6 +139,10 @@ from .Views.V_GST_Reports import *
 
 from .Views.V_ItemSale import *
 
+from .Views.V_StockAdjustment import *
+
+from .Views.V_Transaction import *
+
 urlpatterns = [
     
     # Master APIs IN Projects Add Page ,List Page
@@ -149,6 +153,12 @@ urlpatterns = [
     url(r'InvoicetoSCM',InvoiceToSCMView.as_view()),
     url(r'MobileAppOrder$',T_MobileAppOrdersView.as_view()),
     url(r'MobileAppOrderDelete$',T_MobileAppOrdersDeleteView.as_view()),
+    url(r'MobileAppOrder/([0-9]+)$',T_MobileAppOrdersView.as_view()),
+    url(r'MobileAppAddProduct/([0-9]+)$',NewProductSendToMobileAppView.as_view()),
+    
+    url(r'MobileAppUpdateProduct/([0-9]+)$',NewProductSendToMobileAppView.as_view()),
+    url(r'MobileAppDeleteProduct/([0-9]+)$',NewProductSendToMobileAppView.as_view()),
+    url(r'MobileAppAddRetailer/([0-9]+)$',NewRetailerSendToMobileAppView.as_view()),
     
 # User 
             path('api/token/', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -265,6 +275,7 @@ urlpatterns = [
             url(r'GeneralMasterBrandName$', GeneralMasterBrandName.as_view()),
 
 #Invoice All APIs
+            url(r'Invoicegetandupdate/([0-9]+)$', InvoiceViewEditView.as_view()), # Single Invoice GET,PUT Method                     
             url(r'Invoice/([0-9]+)$', InvoiceViewSecond.as_view()),
             url(r'Invoice$', InvoiceView.as_view()),
             url(r'GetOrderDetails$', OrderDetailsForInvoice.as_view()),
@@ -583,6 +594,8 @@ urlpatterns = [
             url(r'GSTR3BExcel$',GSTR3BDownloadView.as_view()),
             url(r'AllGSTReportsExport$', AllGSTReportsDownloadView.as_view()),
             url(r'MaterialRegister$', MaterialRegisterDownloadView.as_view()),
+            url(r'CreditDebitDataExport$', CreditDebitExportReportView.as_view()),
+            url(r'ReceiptDataExport$', ReceiptDataExportReportView.as_view()),
             
             
             
@@ -599,6 +612,26 @@ urlpatterns = [
             url(r'Claimlist$',ClaimlistView.as_view()),
             
             
+            
+# ClaimTracking
+            url(r'ClaimListfortracking$',Listofclaimforclaimtracking.as_view()),
+            url(r'ClaimTracking/([0-9]+)$',ClaimTrackingEntryViewSecond.as_view()),
+            url(r'ClaimTracking$', ClaimTrackingEntryView.as_view()),
+            url(r'ClaimTrackingList$', ClaimTrackingEntryListView.as_view()),
+            
+            
+            
+# StockAdjustment
+            url(r'ShowBatchesForItem/([0-9]+)/([0-9]+)$',ShowBatchesForItemView.as_view()),
+            
+            
+
+# Transactionlog  
+            url(r'GetEmployeeFromUser$',EmplyoeeListView.as_view()), 
+            url(r'GetTransactionType$',TransactionTypeListView.as_view()),
+            url(r'TransactionDetails$',TransactionTypeView.as_view()),
+            
+                  
 
 
 

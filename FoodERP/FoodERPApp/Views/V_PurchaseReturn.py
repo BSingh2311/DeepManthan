@@ -219,33 +219,32 @@ class PurchaseReturnView(CreateAPIView):
         try:
             with transaction.atomic():
                 
-                # '''Image Upload Code start'''
-                # # Assuming these fields are JSON arrays in the POST data
-                # purchase_return_references_json = request.POST.get('PurchaseReturnReferences')
-                # return_items_json = request.POST.get('ReturnItems')
-                # # Parse JSON arrays into Python lists
-                # purchase_return_references = json.loads(purchase_return_references_json) if purchase_return_references_json else []
-                # return_items = json.loads(return_items_json) if return_items_json else []
-                # PurchaseReturndata = {
-                #     "ReturnDate" : request.POST.get('ReturnDate'),
-                #     "ReturnReasonOptions" : request.POST.get('ReturnReasonOptions'),
-                #     "BatchCode" : request.POST.get('BatchCode'),
-                #     "Customer" : request.POST.get('Customer'),
-                #     "Party" : request.POST.get('Party'),
-                #     "Comment" : request.POST.get('Comment'),
-                #     "GrandTotal" : request.POST.get('GrandTotal'),
-                #     "RoundOffAmount" : request.POST.get('RoundOffAmount'),
-                #     "CreatedBy" : request.POST.get('CreatedBy'),
-                #     "UpdatedBy" : request.POST.get('UpdatedBy'),
-                #     "IsApproved" : request.POST.get('IsApproved'),
-                #     "Mode" : request.POST.get('Mode'),
-                #     "PurchaseReturnReferences" : purchase_return_references,
-                #     "ReturnItems" : return_items
-                # }
+                '''Image Upload Code start'''
+                # Assuming these fields are JSON arrays in the POST data
+                purchase_return_references_json = request.POST.get('PurchaseReturnReferences')
+                return_items_json = request.POST.get('ReturnItems')
+                # Parse JSON arrays into Python lists
+                purchase_return_references = json.loads(purchase_return_references_json) if purchase_return_references_json else []
+                return_items = json.loads(return_items_json) if return_items_json else []
+                PurchaseReturndata = {
+                    "ReturnDate" : request.POST.get('ReturnDate'),
+                    "ReturnReasonOptions" : request.POST.get('ReturnReasonOptions'),
+                    "BatchCode" : request.POST.get('BatchCode'),
+                    "Customer" : request.POST.get('Customer'),
+                    "Party" : request.POST.get('Party'),
+                    "Comment" : request.POST.get('Comment'),
+                    "GrandTotal" : request.POST.get('GrandTotal'),
+                    "RoundOffAmount" : request.POST.get('RoundOffAmount'),
+                    "CreatedBy" : request.POST.get('CreatedBy'),
+                    "UpdatedBy" : request.POST.get('UpdatedBy'),
+                    "IsApproved" : request.POST.get('IsApproved'),
+                    "Mode" : request.POST.get('Mode'),
+                    "PurchaseReturnReferences" : purchase_return_references,
+                    "ReturnItems" : return_items
+                }
                 
-                # '''Image Upload code END'''
-                
-                PurchaseReturndata = JSONParser().parse(request)
+                '''Image Upload code END'''
+                # PurchaseReturndata = JSONParser().parse(request)
                 Party = PurchaseReturndata['Party']
                 Date = PurchaseReturndata['ReturnDate']
                 Mode = PurchaseReturndata['Mode']
@@ -285,20 +284,23 @@ class PurchaseReturnView(CreateAPIView):
                 
                 for a in PurchaseReturndata['ReturnItems']:
                     
-                    # '''Image Upload Code End''' 
-                    # keyname='uploaded_images_'+str(a['Item'])
-                    # avatar = request.FILES.getlist(keyname)
-                    # print(avatar)
-                    # for img,file in zip(a['ReturnItemImages'],avatar):
-                    #     img['Image']=file 
-                    # '''Image Upload Code End'''    
-
-                    if a['ItemReason'] == 56:
-                        
+                    '''Image Upload Code End''' 
+                    keyname='uploaded_images_'+str(a['Item'])
+                    avatar = request.FILES.getlist(keyname)
+                    for img,file in zip(a['ReturnItemImages'],avatar):
+                        img['Image']=file 
+                       
+                    '''Image Upload Code End'''
+                    
+                    SaleableItemReason=MC_SettingsDetails.objects.filter(SettingID=14).values('Value')
+                    value_str = SaleableItemReason[0]['Value']
+                    # Split the string by ',' and convert the resulting substrings to integers
+                    values_to_check = [int(val) for val in value_str.split(',')]
+                    if a['ItemReason'] in values_to_check:
                         IsDamagePieces =False
                     else:
-                        IsDamagePieces =True 
-                        
+                        IsDamagePieces =True
+                             
                     query1 = TC_PurchaseReturnItems.objects.filter(Item_id=a['Item'], BatchDate=date.today(), PurchaseReturn_id__in=query).values('id')
                     query2=MC_ItemShelfLife.objects.filter(Item_id=a['Item'],IsDeleted=0).values('Days')
                     if(item == ""):
@@ -362,10 +364,8 @@ class PurchaseReturnView(CreateAPIView):
                     })
                     O_BatchWiseLiveStockList=list()
                     UpdateO_BatchWiseLiveStockList = list()
-                    
-                # print(GRNdata)
+              
                 PurchaseReturndata.update({"O_LiveBatchesList":O_LiveBatchesList}) 
-               
                 PurchaseReturn_Serializer = PurchaseReturnSerializer(data=PurchaseReturndata)
                 # return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':'', 'Data':PurchaseReturn_Serializer.data})
                 if PurchaseReturn_Serializer.is_valid():
@@ -374,12 +374,17 @@ class PurchaseReturnView(CreateAPIView):
                     # log_entry = create_transaction_logNew(request, PurchaseReturndata, x, 'Return Save Successfully',53,LastInsertID,0,0,y)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Return Save Successfully', 'Data':[]})
                 else:
+                  
                     # log_entry = create_transaction_logNew(request, PurchaseReturndata, x,  PurchaseReturn_Serializer.errors,34,0)
                     transaction.set_rollback(True)
                     return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':  PurchaseReturn_Serializer.errors, 'Data':[]})
         except Exception as e:
-            log_entry = create_transaction_logNew(request, PurchaseReturndata, 0,  Exception(e),33,0)
-            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
+            print('DDDDD')
+            print(str(e))
+            # log_entry = create_transaction_logNew(request, PurchaseReturndata, 0,  Exception(e),33,0)
+            # return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  e, 'Data':[]})
+ 
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message': e.__dict__, 'Data': []})
     
     # Purchase Return DELETE API New code Date 25/07/2023
     @transaction.atomic()
@@ -789,9 +794,13 @@ class SalesReturnItemApproveView(CreateAPIView):
                     # Rate=RateCalculationFunction(0,a['Item'],Party,0,1,0,0).RateWithGST()
                     
                     Rate =0.00
+                    
 
-                    if a['ItemReason'] == 56:
-                        
+                    SaleableItemReason=MC_SettingsDetails.objects.filter(SettingID=14).values('Value')
+                    value_str = SaleableItemReason[0]['Value']
+                    # Split the string by ',' and convert the resulting substrings to integers
+                    values_to_check = [int(val) for val in value_str.split(',')]
+                    if a['ItemReason'] in values_to_check:
                         IsDamagePieces =False
                     else:
                         IsDamagePieces =True 
