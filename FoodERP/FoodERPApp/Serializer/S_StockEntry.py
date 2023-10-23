@@ -10,7 +10,7 @@ from .S_Orders import *
 class PartyStockEntryT_StockSerializer(serializers.ModelSerializer):
     class Meta:
         model = T_Stock
-        fields = ['StockDate','Item','Quantity','Unit','BaseUnitQuantity','MRPValue','MRP','Party','CreatedBy','BatchCode','Difference','IsSaleable','BatchCodeID']
+        fields = ['StockDate','Item','Quantity','Unit','BaseUnitQuantity','MRPValue','MRP','Party','CreatedBy','BatchCode','Difference','IsSaleable','BatchCodeID','IsStockAdjustment']
     
 class PartyStockEntryOBatchWiseLiveStockSerializer(serializers.ModelSerializer):
     class Meta:
@@ -59,6 +59,6 @@ class PartyStockAdjustmentOLiveBatchesSerializer(serializers.ModelSerializer):
                 StockItem=T_Stock.objects.create(**T_StockEntryItem_data)
         
         for O_BatchWiseLiveStockItems_data in O_BatchWiseLiveStockListItems_data:
-            GrnItem=O_BatchWiseLiveStock.objects.filter(id=O_BatchWiseLiveStockItems_data['BatchCodeID']).update(BaseUnitQuantity=O_BatchWiseLiveStockItems_data['BaseUnitQuantity'])    
+            GrnItem=O_BatchWiseLiveStock.objects.filter(id=T_StockEntryItem_data['BatchCodeID']).update(BaseUnitQuantity=O_BatchWiseLiveStockItems_data['BaseUnitQuantity'])    
         
         return GrnItem

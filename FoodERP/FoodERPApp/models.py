@@ -166,6 +166,8 @@ class M_Parties(models.Model):
     City = models.ForeignKey(M_Cities, related_name='PartiesCities', on_delete=models.PROTECT,null=True,blank=True)
     Latitude = models.CharField(max_length=500,null=True, blank=True)
     Longitude = models.CharField(max_length=500,null=True, blank=True)
+    IsApprovedParty = models.BooleanField(default=False)
+    SkyggeID = models.CharField(max_length=500,null=True, blank=True)
     class Meta:
         db_table = 'M_Parties'
         
@@ -647,6 +649,7 @@ class M_Items(models.Model):
     Length = models.CharField(max_length=200,null=True,blank=True)
     StoringCondition = models.CharField(max_length=200,null=True,blank=True)
     Budget = models.DecimalField(max_digits=20, decimal_places=2,null=True,blank=True)
+    SkyggeProductID=models.IntegerField(default=False,null=True,blank=True)
     class Meta:
         db_table = "M_Items"
         
@@ -1704,7 +1707,7 @@ class M_ImportFields(models.Model):
     FieldValidation = models.ForeignKey(M_FieldValidations, related_name='ImportFieldValidation', on_delete=models.PROTECT)
     ImportExcelType = models.ForeignKey(M_ImportExcelTypes,related_name='ImportFieldExcelType', on_delete=models.PROTECT)
     Company = models.ForeignKey(C_Companies,related_name='ImportFieldCompany', on_delete=models.PROTECT)
-
+    Sequence = models.IntegerField(blank=True, null=True)
     class Meta:
         db_table = "M_ImportFields"
  
@@ -1718,7 +1721,7 @@ class MC_PartyImportFields(models.Model):
     Company = models.ForeignKey(C_Companies,related_name='PartyImportFieldCompany', on_delete=models.PROTECT,blank=True, null=True)
     ImportField = models.ForeignKey(M_ImportFields, related_name='ImportFields',on_delete=models.CASCADE)
     Party = models.ForeignKey(M_Parties,related_name='PartyImport', on_delete=models.PROTECT,blank=True, null=True)
-   
+    Sequence = models.IntegerField(blank=True, null=True)
     class Meta:
         db_table = "MC_PartyImportFields"
                                 
@@ -1768,6 +1771,7 @@ class T_Stock(models.Model):
     BatchCode = models.CharField(max_length=500,blank=True,null=True)
     BatchCodeID = models.CharField(max_length=500,blank=True,null=True)
     Difference = models.DecimalField(max_digits=20, decimal_places=2,blank=True,null=True)
+    IsStockAdjustment = models.BooleanField(default=False)
     class Meta:
         db_table="T_Stock"        
                 
@@ -1836,6 +1840,7 @@ class MC_SettingDependency(models.Model):
 
 class M_TransactionType(models.Model):
     Name = models.CharField(max_length=500) 
+    TransactionCategory =  models.IntegerField(blank=True, null=True)
     class Meta:
         db_table="M_TransactionType"           
         
@@ -1853,6 +1858,7 @@ class Transactionlog(models.Model):
     FromDate = models.DateField(blank=True, null=True)
     ToDate = models.DateField(blank=True, null=True)
     CustomerID = models.IntegerField(default=1)
+    # TransactionCategory =  models.IntegerField(blank=True, null=True)
     
     class Meta:
         db_table="Transactionlog"     
@@ -1888,6 +1894,7 @@ class M_PartySettingsDetails(models.Model):
     Setting=models.ForeignKey(M_Settings,related_name='Settingid',on_delete=models.CASCADE)  
     Company = models.ForeignKey(C_Companies,related_name='SetCompany', on_delete=models.PROTECT)
     Party = models.ForeignKey(M_Parties,related_name='SetParty', on_delete=models.CASCADE)
+    Image = models.ImageField(upload_to="Images\PartyRelatedImages",default="",null=True,blank=True)
     
     class Meta:
         db_table="M_PartySettingsDetails"
@@ -1910,6 +1917,7 @@ class O_DateWiseLiveStock(models.Model):
     CreatedBy = models.IntegerField()
     CreatedOn = models.DateTimeField(auto_now_add=True)
     MRPValue = models.DecimalField(max_digits=20,decimal_places=10)
+    StockAdjustment = models.DecimalField(max_digits=20,decimal_places=10)
 
     class Meta:
         db_table="O_DateWiseLiveStock"      
@@ -2145,5 +2153,55 @@ class T_ClaimTrackingEntry(models.Model):
     PartyType = models.ForeignKey(M_PartyType, related_name='ClaimTrackingPartyType', on_delete=models.PROTECT,blank=True, null=True)
     Claim = models.ForeignKey(M_Claim,related_name='ClaimTracking', on_delete=models.PROTECT,blank=True, null=True) 
     class Meta:
-        db_table = "T_ClaimTrackingEntry"   
+        db_table = "T_ClaimTrackingEntry"
+
+class M_Cluster(models.Model):
+    Name = models.CharField(max_length=500,null=True)
+    CreatedBy = models.IntegerField()
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField()
+    UpdatedOn = models.DateTimeField(auto_now=True)
+    class Meta:
+        db_table = "M_Cluster"    
+
+class M_SubCluster(models.Model):
+    Name = models.CharField(max_length=500,null=True)
+    CreatedBy = models.IntegerField()
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField()
+    UpdatedOn = models.DateTimeField(auto_now=True)
+    Cluster = models.ForeignKey(M_Cluster,related_name='SubClusters', on_delete=models.PROTECT) 
+    class Meta:
+        db_table = "M_SubCluster"
+
+class M_CentralServiceItems(models.Model):
+    Name = models.CharField(max_length=500)
+    HSNCode = models.CharField(max_length=500)
+    GSTPercentage = models.DecimalField(max_digits=10, decimal_places=2)
+    isActive = models.BooleanField(default=False)
+    CreatedBy = models.IntegerField(default=False)
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField(default=False)
+    UpdatedOn = models.DateTimeField(auto_now=True)
+    Unit = models.ForeignKey(M_Units, related_name='CentralServiceItemUnit', on_delete=models.PROTECT)
+    Rate = models.DecimalField(max_digits=10, decimal_places=2,null=True,blank=True)
+    Company = models.ForeignKey(C_Companies,related_name='ServiceItemCompany', on_delete=models.PROTECT)
+    class Meta:
+        db_table = "M_CentralServiceItems"
+
+
+class MC_CentralServiceItemAssign(models.Model):
+    Rate = models.DecimalField(max_digits=10, decimal_places=2,null=True,blank=True)
+    CreatedBy = models.IntegerField(default=False)
+    CreatedOn = models.DateTimeField(auto_now_add=True)
+    UpdatedBy = models.IntegerField(default=False)
+    UpdatedOn = models.DateTimeField(auto_now=True)
+    CentralServiceItem = models.ForeignKey(M_CentralServiceItems, related_name='CentralServiceItems', on_delete=models.PROTECT)
+    Party = models.ForeignKey(M_Parties, related_name='CentralServiceItemParty', on_delete=models.PROTECT) 
+    class Meta:
+        db_table = "MC_CentralServiceItemAssign"        
+
+
+
+
 	

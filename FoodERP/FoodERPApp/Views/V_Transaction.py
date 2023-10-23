@@ -10,6 +10,8 @@ from ..Serializer.S_Transaction import *
 from django.db.models import Q
 from datetime import datetime
 from django.db import connection
+from .V_CommFunction import *
+
 
 class EmplyoeeListView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
@@ -81,22 +83,25 @@ class TransactionTypeView(CreateAPIView):
                 where_clause = " AND ".join(conditions) if conditions else ""
 
 
-                Transactionquery_sql = f'''SELECT Transactionlog.id, Transactiontime as TransactionDate, concat(M_Employees.Name,' (',M_Users.LoginName,')') UserName, IPaddress, M_TransactionType.Name as TransactionType, TransactionID, M_Parties.Name PartyName, TransactionDetails
+                Transactionquery_sql = f'''SELECT Transactionlog.id, Transactiontime as TransactionDate, concat(M_Employees.Name,' (',M_Users.LoginName,')') UserName, IPaddress, M_TransactionType.Name as TransactionType, TransactionID, A.Name PartyName, B.Name AS CustomerName,TransactionDetails
 FROM Transactionlog 
 LEFT JOIN M_Users ON Transactionlog.User = M_Users.id
 LEFT JOIN M_Employees ON M_Users.Employee_id = M_Employees.id
 LEFT JOIN M_TransactionType ON TransactionType = M_TransactionType.id
-LEFT JOIN M_Parties ON Transactionlog.PartyID = M_Parties.id	
+LEFT JOIN M_Parties A ON Transactionlog.PartyID = A.id 
+LEFT JOIN M_Parties B ON Transactionlog.CustomerID = B.id
 WHERE Transactiontime BETWEEN %s AND %s'''
                 if where_clause:
                     Transactionquery_sql += f' AND {where_clause}'
                 Transactionquery_sql += ' ORDER BY Transactiontime DESC'
                 Transactionquery = Transactionlog.objects.raw(Transactionquery_sql, [FromDate, ToDate])
-                # print(Transactionquery.query)
                 if Transactionquery:
                         Transaction_Serializer = TransactionlogSerializer(Transactionquery,many=True).data
+                        log_entry = create_transaction_logNew(request, Transactiondata, 0,'From:'+str(FromDate)+','+'To:'+str(ToDate),196,0,FromDate,ToDate,0)
                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data' :Transaction_Serializer})
+                log_entry = create_transaction_logNew(request, Transactiondata, 0,'TransactionTypeDetails not available',196,0)
                 return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': 'TransactionTypeDetails not available', 'Data' : []})
         except Exception as e:
+            log_entry = create_transaction_logNew(request, 0, 0,Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
 

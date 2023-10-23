@@ -42,11 +42,16 @@ class PurchaseReturnListView(CreateAPIView):
                 else:
                     par=Q(Party=Party)
 
+                # for log
                 if (Party == ''):
-                    x = Customer
+                    x = 0
+                    y = Customer
+                elif (Customer == ''):
+                    x = Party
+                    y = 0
                 else:
                     x = Party
-                
+                    y = Customer                
                 query = T_PurchaseReturn.objects.filter(ReturnDate__range=[FromDate, ToDate]).filter( cust ).filter(par)
                 
                 # print(query.query)
@@ -89,12 +94,12 @@ class PurchaseReturnListView(CreateAPIView):
                             "Status" :Status,
                             "Mode":a["Mode"]
                         })
-                    log_entry = create_transaction_logNew(request, Returndata, x, 'PurchaseReturn List',51,0,FromDate,ToDate,0)
+                    log_entry = create_transaction_logNew(request, Returndata, x,'From:'+FromDate+','+'To:'+ToDate,51,0,FromDate,ToDate,y)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': ReturnListData})
-                log_entry = create_transaction_logNew(request, Returndata, x, 'Record Not Found',29,0)
+                log_entry = create_transaction_logNew(request, Returndata, x, 'Return List Not Found',51,0)
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Record Not Found', 'Data': []})
         except Exception as e:
-            log_entry = create_transaction_logNew(request, Returndata, 0, Exception(e),33,0)
+            log_entry = create_transaction_logNew(request, 0, 0, Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
 def primarySourceNAme(ID):
@@ -129,7 +134,7 @@ class PurchaseReturnView(CreateAPIView):
                 Query = T_PurchaseReturn.objects.filter(id=id)
                 
                 if Query.exists():
-                    PurchaseReturnSerializer = PurchaseReturnSerializerThird(Query, many=True).data 
+                    PurchaseReturnSerializer = PurchaseReturnSerializerThird(Query, many=True, context= {'request': request}).data 
                     
                     PuchaseReturnList=list()
 
@@ -201,14 +206,10 @@ class PurchaseReturnView(CreateAPIView):
                             "IsApproved" : a["IsApproved"],
                             "ReturnItems":PurchaseReturnItemList
                         })
-                        if a['Party'] == '':
-                            x = a['Customer']
-                        else:
-                            x = a['Party']
                         
-                        log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, x, 'PurchaseReturn',52,0)
+                        log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, a['Party'],'ReturnDate:'+a['ReturnDate']+','+'Supplier:'+str(a['Party']),52,0,0,0,a['Customer'])
                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data' :PuchaseReturnList})
-                log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, x, 'Data not available',7,0)
+                log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, a['Party'], 'PurchaseReturn not available',52,0)
                 return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': 'Item not available', 'Data' : []})
         except Exception as e:
             log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, Exception(e),33,0)
@@ -260,22 +261,6 @@ class PurchaseReturnView(CreateAPIView):
                 PurchaseReturndata['FullReturnNumber'] = str(d)+""+str(c)
 
                 item = ""
-
-                #for log
-                # if Mode == 1:
-                #         x = Party
-
-                #         y = PurchaseReturndata['Customer']
-
-                # elif  Mode == 2:
-                #     x = PurchaseReturndata['Customer']
-
-                #     y = Party
-
-                # elif Mode == 3:
-                #     x = PurchaseReturndata['Customer']
-
-                #     y = Party
 
                 query = T_PurchaseReturn.objects.filter(Party_id=Party).values('id')
                 O_BatchWiseLiveStockList=list()
@@ -367,24 +352,23 @@ class PurchaseReturnView(CreateAPIView):
               
                 PurchaseReturndata.update({"O_LiveBatchesList":O_LiveBatchesList}) 
                 PurchaseReturn_Serializer = PurchaseReturnSerializer(data=PurchaseReturndata)
-                # return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':'', 'Data':PurchaseReturn_Serializer.data})
                 if PurchaseReturn_Serializer.is_valid():
                     PurchaseReturn = PurchaseReturn_Serializer.save()
                     LastInsertID = PurchaseReturn.id
-                    # log_entry = create_transaction_logNew(request, PurchaseReturndata, x, 'Return Save Successfully',53,LastInsertID,0,0,y)
-                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Return Save Successfully', 'Data':[]})
+                    if Mode == 1:
+                        log_entry = create_transaction_logNew(request, PurchaseReturndata,Party,'ReturnDate:'+PurchaseReturndata['ReturnDate']+','+'Supplier:'+str(Party)+','+'TransactionID:'+str(LastInsertID),53,LastInsertID,0,0,PurchaseReturndata['Customer'])
+                    elif Mode == 2:
+                        log_entry = create_transaction_logNew(request, PurchaseReturndata,Party,'ReturnDate:'+PurchaseReturndata['ReturnDate']+','+'Supplier:'+str(Party)+','+'TransactionID:'+str(LastInsertID),53,LastInsertID,0,0,PurchaseReturndata['Customer'])
+                    elif Mode == 3:
+                        log_entry = create_transaction_logNew(request, PurchaseReturndata,Party,'ReturnDate:'+PurchaseReturndata['ReturnDate']+','+'Supplier:'+str(Party)+','+'TransactionID:'+str(LastInsertID),53,LastInsertID,0,0,PurchaseReturndata['Customer'])
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Return Save Successfully', 'TransactionID':LastInsertID, 'Data':[]})
                 else:
-                  
-                    # log_entry = create_transaction_logNew(request, PurchaseReturndata, x,  PurchaseReturn_Serializer.errors,34,0)
+                    log_entry = create_transaction_logNew(request, PurchaseReturndata, PurchaseReturndata['Customer'],  PurchaseReturn_Serializer.errors,34,0)
                     transaction.set_rollback(True)
                     return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':  PurchaseReturn_Serializer.errors, 'Data':[]})
         except Exception as e:
-            print('DDDDD')
-            print(str(e))
-            # log_entry = create_transaction_logNew(request, PurchaseReturndata, 0,  Exception(e),33,0)
-            # return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  e, 'Data':[]})
- 
-            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message': e.__dict__, 'Data': []})
+            log_entry = create_transaction_logNew(request, PurchaseReturndata, 0,  Exception(e),33,0)
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message': str(e), 'Data': []})
     
     # Purchase Return DELETE API New code Date 25/07/2023
     @transaction.atomic()
@@ -396,7 +380,7 @@ class PurchaseReturnView(CreateAPIView):
                 if Mode == '1':   # Sales Return Mode
                     PurchaseReturn_Data = T_PurchaseReturn.objects.get(id=id)
                     PurchaseReturn_Data.delete()
-                    log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'Return Deleted Successfully',54,0)
+                    log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, '',54,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Return Deleted Successfully', 'Data': []})
                 else:
                     Query2 = T_PurchaseReturn.objects.filter(id=id)
@@ -417,14 +401,14 @@ class PurchaseReturnView(CreateAPIView):
                                         OBatchWiseLiveStock=O_BatchWiseLiveStock.objects.filter(PurchaseReturn=b['SubReturn'],Item=b['Item']['id']).update(BaseUnitQuantity = Qty ) #float(OBatchQuantity[0]['BaseUnitQuantity']) + float(b['BaseUnitQuantity'])
                                     Qty =0.00
                                 else:    
-                                    log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'Return Qty greater than Consolidated return qty',55,0)
+                                    log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'PurchaseReturnID:'+str(id),55,0)
                                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Return Qty greater than Consolidated return qty', 'Data': []})     
                         PurchaseReturn_Data = T_PurchaseReturn.objects.get(id=id)
                         PurchaseReturn_Data.delete()  
-                        log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'Return Deleted Successfully',54,0)      
+                        log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'PurchaseReturnID:'+str(id),54,0)      
                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Return Deleted Successfully', 'Data': []}) 
         except IntegrityError:
-            log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'This Transaction used in another table',8,0)
+            log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'PurchaseReturnID:'+str(id),8,0)
             return JsonResponse({'StatusCode': 226, 'Status': True, 'Message': 'This Transaction used in another table', 'Data': []})
         except Exception as e:
             log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, Exception(e),33,0)
@@ -518,12 +502,16 @@ class ReturnItemAddView(CreateAPIView):
                         if MRPquery.exists():
                             MRPdata = ItemMRPSerializerSecond(MRPquery, many=True).data
                             ItemMRPDetails = list()
+                            unique_MRPs = set()
                             
                             for d in MRPdata:
-                                ItemMRPDetails.append({
-                                "MRP": d['id'],
-                                "MRPValue": d['MRP'],   
-                            })
+                                MRPs = d['MRP']
+                                if MRPs not in unique_MRPs:
+                                    ItemMRPDetails.append({
+                                        "MRP": d['id'],
+                                        "MRPValue": MRPs,
+                                    })
+                                    unique_MRPs.add(MRPs)
                         
                         GSTquery = M_GSTHSNCode.objects.filter(Item_id=Item).order_by('-id')[:3] 
                         if GSTquery.exists():
@@ -543,15 +531,15 @@ class ReturnItemAddView(CreateAPIView):
                         })
                     
                     Itemlist.append({"InvoiceItems":InvoiceItems}) 
-                    log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'Return Item List',56,0)   
+                    log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0,'',56,0)   
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': Itemlist[0]})
-                log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'Data Not available',7,0)   
+                log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'ReturnItemList Not available',56,0)   
                 return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Items Not available ', 'Data': []})
         except M_Items.DoesNotExist:
-            log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'Data Not available',7,0) 
+            log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, 'ReturnItemList Not available',56,0) 
             return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Items Not available', 'Data': []})
         except Exception as e:
-            log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, 0, Exception(e),33,0) 
+            log_entry = create_transaction_logNew(request,0, 0, Exception(e),33,0) 
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})        
 
 
@@ -655,7 +643,7 @@ class ReturnItemBatchCodeAddView(CreateAPIView):
                             Unit = Unitquery[0]["id"]
                             UnitName = "No"
                     else:  
-                        log_entry = create_transaction_logNew(request, PurchaseReturndata, CustomerID, 'Batch Code is Not Available',57,0)
+                        log_entry = create_transaction_logNew(request, PurchaseReturndata, 0, 'BatchCode is Not Available',57,0)
                         return JsonResponse({'StatusCode': 204, 'Status': True, 'Message' : 'Batch Code is Not Available', 'Data': []})      
 
                 else: 
@@ -689,13 +677,13 @@ class ReturnItemBatchCodeAddView(CreateAPIView):
                         "ItemGSTDetails":ItemGSTDetails,
                         "StockDetails":StockDatalist 
                 })   
-                log_entry = create_transaction_logNew(request, PurchaseReturndata, CustomerID, 'ReturnItemBatchCode',58,0)
+                log_entry = create_transaction_logNew(request, PurchaseReturndata,0,'',58,0,0,0,CustomerID)
                 return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': GRMItems})
         except M_Items.DoesNotExist:
-            log_entry = create_transaction_logNew(request, PurchaseReturndata, CustomerID, 'Data Not Available',7,0)
+            log_entry = create_transaction_logNew(request, PurchaseReturndata, 0, 'ReturnItemBatchCode Not Available',58,0)
             return JsonResponse({'StatusCode': 204, 'Status': True,'Message':  'Items Not available', 'Data': []})
         except Exception as e:
-            log_entry = create_transaction_logNew(request, PurchaseReturndata, 0, Exception(e),33,0)
+            log_entry = create_transaction_logNew(request, 0, 0, Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})      
 
 
@@ -756,12 +744,12 @@ class SalesReturnconsolidatePurchaseReturnView(CreateAPIView):
                             "ApprovedByCompany" : b['ApprovedByCompany']
                             
                         })
-                    log_entry = create_transaction_logNew(request, ReturnItemdata, Party, 'SalesReturnconsolidateItem',59,0 )   
+                    log_entry = create_transaction_logNew(request, ReturnItemdata, Party,'Supplier:'+str(Party),59,0)   
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data' :PurchaseReturnItemList})
-                log_entry = create_transaction_logNew(request, ReturnItemdata, Party, 'Data not available',7,0 )
+                log_entry = create_transaction_logNew(request, ReturnItemdata, Party, 'PurchaseReturnItemList not available',59,0 )
                 return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': 'Item not available', 'Data' : []})
         except Exception as e:
-            log_entry = create_transaction_logNew(request, ReturnItemdata, 0, str(e),33,0 )
+            log_entry = create_transaction_logNew(request, 0, 0, str(e),33,0 )
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  str(e), 'Data':[]})     
         
 
@@ -867,14 +855,14 @@ class SalesReturnItemApproveView(CreateAPIView):
                 PurchaseReturn_Serializer = ReturnApproveQtySerializer(data=PurchaseReturndata)
                 if PurchaseReturn_Serializer.is_valid():
                     PurchaseReturn_Serializer.save()
-                    log_entry = create_transaction_logNew(request, PurchaseReturndata, 0, 'Return Item Approve Successfully',60,0)
+                    log_entry = create_transaction_logNew(request, PurchaseReturndata, 0, 'Supplier:'+str(Party),60,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Return Item Approve Successfully','Data':[]})
                 else:
                     log_entry = create_transaction_logNew(request, PurchaseReturndata, 0, PurchaseReturn_Serializer.errors,34,0 )
                     transaction.set_rollback(True)
                     return JsonResponse({'StatusCode': 406, 'Status': True, 'Message':  PurchaseReturn_Serializer.errors, 'Data':[]})
         except Exception as e:
-            log_entry = create_transaction_logNew(request, PurchaseReturndata, 0, str(e),33,0 )
+            log_entry = create_transaction_logNew(request, 0, 0, str(e),33,0 )
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})     
                 
                 
@@ -968,10 +956,10 @@ class PurchaseReturnPrintView(CreateAPIView):
                             "ReturnItems":PurchaseReturnItemList
                             
                         })
-                        log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, a['Party']['id'], 'PurchaseReturnPrint',61,0,0,0,a['Customer']['id'])
+                        log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, a['Party']['id'], '',61,0,0,0,a['Customer']['id'])
                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data' :PuchaseReturnList[0]})
-                log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, a['Party']['id'], 'Data not available',7,0)
+                log_entry = create_transaction_logNew(request, {'PurchaseReturnID':id}, a['Party']['id'], 'PurchaseReturnPrint not available',61,0)
                 return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': 'Item not available', 'Data' : []})
         except Exception as e:
-            log_entry = create_transaction_logNew(request,{'PurchaseReturnID':id}, 0, Exception(e),33,0 )
+            log_entry = create_transaction_logNew(request,0, 0, Exception(e),33,0 )
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})                

@@ -316,6 +316,7 @@ class Uploaded_EwayBill(CreateAPIView):
                             response = requests.request("GET", Calculate_Distance_URL, headers=headers)
 
                             distance_dict = json.loads(response.text)
+                            
                 #===============================================================================================================           
                             if(distance_dict['results']['status']== 'Success' and distance_dict['results']['code']== 200):
                                 
@@ -432,7 +433,7 @@ class Uploaded_EwayBill(CreateAPIView):
                                     # print('hhhhhhh')
                                     return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': data_dict['results'], 'Data': InvoiceData[0] })
                             else:
-                                return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': distance_dict['results'], 'Data': InvoiceData[0] })     
+                                return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': distance_dict['results'], 'Data': [] })     
                             
                     else:
                         return JsonResponse({'StatusCode': 400, 'Status': True, 'Message': aa[1], 'Data': []})
@@ -588,7 +589,7 @@ left join M_Districts PD on PD.id=P.District_id
 left join M_Districts CD on  CD.id=C.District_id
 where T_CreditDebitNotes.id=%s)a
 left join 
-(select sum(BasicAmount)Total_assessable_value,(sum(Amount)-sum(DiscountAmount))total_invoice_value,sum(CGST)total_cgst_value,
+(select sum(BasicAmount)Total_assessable_value,(sum(Amount))total_invoice_value,sum(CGST)total_cgst_value,
 sum(SGST) total_sgst_value,sum(IGST)total_igst_value,sum(DiscountAmount)total_discount, CRDRNote_id 
 from TC_CreditDebitNoteItems where CRDRNote_id=%s)b
 on a.id=b.CRDRNote_id''',([id],[id])
@@ -719,7 +720,7 @@ where CRDRNote_id=%s group by TC_CreditDebitNoteItems.Item_id,M_GSTHSNCode.HSNCo
                         'total_cgst_value': Invoice['total_cgst_value'],
                         'total_sgst_value': Invoice['total_sgst_value'],
                         'total_igst_value': Invoice['total_igst_value'],
-                        'total_discount': Invoice['total_discount']
+                        'total_discount': 0
                     }),
                     ewaybill_details.append({
                         'transportation_mode': 1,

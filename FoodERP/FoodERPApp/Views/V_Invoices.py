@@ -152,7 +152,7 @@ class OrderDetailsForInvoice(CreateAPIView):
                     "OrderIDs":Order_list,
                     "OrderItemDetails":OrderItemDetails
                    })  
-            log_entry = create_transaction_logNew(request, Orderdata, Party,'Supplier:'+str(Customer),32,0,0,0,Customer)         
+            log_entry = create_transaction_logNew(request, Orderdata, Party,'Supplier:'+str(Party),32,0,0,0,Customer)         
             return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': Orderdata[0]})
         except Exception as e:
             log_entry = create_transaction_logNew(request, Orderdata, 0, Exception(e),33,0)
@@ -178,7 +178,7 @@ class InvoiceListFilterView(CreateAPIView):
                     query = T_Invoices.objects.filter(InvoiceDate__range=[FromDate, ToDate], Party=Party).order_by('-InvoiceDate')
                 else:
                     query = T_Invoices.objects.filter(InvoiceDate__range=[FromDate, ToDate], Customer_id=Customer, Party=Party).order_by('-InvoiceDate')
-
+                print(query.query)
                 # for log
                 if(Customer == ''):
                     x = 0
@@ -195,7 +195,12 @@ class InvoiceListFilterView(CreateAPIView):
                             LoadingSheetCreated = False 
                         else:
                             LoadingSheetCreated = True
-                        query2 = MC_PartySubParty.objects.filter(Party=a['Party']['id'],SubParty=a['Customer']['id']).values('IsTCSParty')     
+                        query2 = MC_PartySubParty.objects.filter(Party=a['Party']['id'],SubParty=a['Customer']['id']).values('IsTCSParty')
+                        if not query2:
+                            IsTCSParty = ""
+                        else:
+                            IsTCSParty= query2[0]['IsTCSParty']    
+                        # print(str(query2.query))    
                         InvoiceListData.append({
                             "id": a['id'],
                             "InvoiceDate": a['InvoiceDate'],
@@ -215,7 +220,7 @@ class InvoiceListFilterView(CreateAPIView):
                             "CustomerPartyType":a['Customer']['PartyType_id'],
                             "CustomerGSTIN": a['Customer']['GSTIN'],
                             "CustomerPAN": a['Customer']['PAN'],
-                            "IsTCSParty":  query2[0]['IsTCSParty']
+                            "IsTCSParty": IsTCSParty 
                         })
                     log_entry = create_transaction_logNew(request, Invoicedata, Party, 'From:'+FromDate+','+'To:'+ToDate,35,0,FromDate,ToDate,0)
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': InvoiceListData})
@@ -267,7 +272,7 @@ class InvoiceView(CreateAPIView):
                 if Invoice_serializer.is_valid():
                     Invoice = Invoice_serializer.save()
                     LastInsertId = Invoice.id
-                    log_entry = create_transaction_logNew(request, Invoicedata, Invoicedata['Customer'],'InvoiceDate:'+Invoicedata['InvoiceDate']+','+'Supplier:'+str(Party)+','+'TransactionID:'+str(LastInsertId),4,LastInsertId,0,0,Party)
+                    log_entry = create_transaction_logNew(request, Invoicedata,Party ,'InvoiceDate:'+Invoicedata['InvoiceDate']+','+'Supplier:'+str(Party)+','+'TransactionID:'+str(LastInsertId),4,LastInsertId,0,0, Invoicedata['Customer'])
                     return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Invoice Save Successfully','TransactionID':LastInsertId, 'Data':[]})
                 log_entry = create_transaction_logNew(request, Invoicedata, Party, Invoice_serializer.errors,34,0,InvoiceDate,0,Invoicedata['Customer'])
                 return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': Invoice_serializer.errors, 'Data':[]})
@@ -342,8 +347,7 @@ class InvoiceViewSecond(CreateAPIView):
                         for ad in a['Customer']['PartyAddress']:
                             if ad['IsDefault'] == True :
                                 DefCustomerAddress = ad['Address']
-                                
-                        DefPartyAddress = ''
+                                DefCustomerFSSAI = ad['FSSAINo']
                         for x in a['Party']['PartyAddress']:
                             if x['IsDefault'] == True :
                                 DefPartyAddress = x['Address']
@@ -386,7 +390,7 @@ class InvoiceViewSecond(CreateAPIView):
                             "PartyGSTIN": a['Party']['GSTIN'],
                             "PartyMobileNo": a['Party']['MobileNo'],
                             "PartyFSSAINo": DefPartyFSSAI,
-                            "CustomerFSSAINo": a['Customer']['PartyAddress'][0]['FSSAINo'],
+                            "CustomerFSSAINo": DefCustomerFSSAI,
                             "PartyState": a['Party']['State']['Name'],
                             "CustomerState": a['Customer']['State']['Name'],
                             "PartyAddress": DefPartyAddress,                            
@@ -476,7 +480,7 @@ class InvoiceNoView(CreateAPIView):
                 Customer = InVoice_Data['CustomerID']
 
                 if Party == '':
-                    x = Customer
+                    x = 0
                 else:
                     x = Party
 
@@ -616,8 +620,11 @@ class BulkInvoiceView(CreateAPIView):
     def post(self, request):
         try:
             with transaction.atomic():
-                Invoicedata = JSONParser().parse(request)
+                Invoicedata = JSONParser().parse(request) 
                 for aa in Invoicedata['BulkData']:
+                    print(aa)
+                    print('===================================')
+                    aa['InvoiceNumber']=1   #Invoice Import 
                     CustomerMapping=M_PartyCustomerMappingMaster.objects.filter(MapCustomer=aa['Customer'],Party=aa['Party']).values("Customer")
                    
                     if CustomerMapping.count() > 0:
@@ -627,6 +634,8 @@ class BulkInvoiceView(CreateAPIView):
                         return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': " Customer Data Mapping Missing", 'Data':[]})    
                     # print(aa['Customer'])
                     for bb in aa['InvoiceItems']:
+                        print(bb)
+                        print('----------------------------------------')
                         ItemMapping=M_ItemMappingMaster.objects.filter(MapItem=bb['Item'],Party=aa['Party']).values("Item")
                         if ItemMapping.count() > 0:
                             bb['Item']=ItemMapping[0]['Item']
@@ -636,17 +645,24 @@ class BulkInvoiceView(CreateAPIView):
                         UnitMapping=M_UnitMappingMaster.objects.filter(MapUnit=bb['Unit'],Party=aa['Party']).values("Unit")
                         if UnitMapping.count() > 0:
                             MC_UnitID=MC_ItemUnits.objects.filter(UnitID=UnitMapping[0]["Unit"],Item=ItemMapping[0]["Item"],IsDeleted=0).values("id")
+                            
                             if MC_UnitID.count() > 0:
                                 bb['Unit']=MC_UnitID[0]['id']
+                                bb['BaseUnitQuantity']=UnitwiseQuantityConversion(ItemMapping[0]["Item"],bb['Quantity'],bb['Unit'],0,0,0,0).GetBaseUnitQuantity()
                             else:
                                 # log_entry = create_transaction_logNew(request, Invoicedata, 0, " MC_ItemUnits Data Mapping Missing",39,0)
                                 return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': " MC_ItemUnits Data Mapping Missing", 'Data':[]})            
                         else:
                             # log_entry = create_transaction_logNew(request, Invoicedata, 0, "Unit Data Mapping Missing",40,0)
                             return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': " Unit Data Mapping Missing", 'Data':[]})
+                         
+                    # return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Invoice Save Successfully', 'Data':aa })    
+                    print(aa)
                     Invoice_serializer = BulkInvoiceSerializer(data=aa)
                     if Invoice_serializer.is_valid():
+                        # print(Invoice_serializer)
                         Invoice_serializer.save()
+                        pass
                     else:
                         transaction.set_rollback(True)
                         # log_entry = create_transaction_logNew(request, Invoicedata, 0, Invoice_serializer.errors,34,0)
@@ -694,10 +710,6 @@ class UpdateVehicleInvoiceView(CreateAPIView):
         except Exception as e:
             log_entry = create_transaction_logNew(request, {'InvoiceID':id}, 0, Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})    
-        
-
-
-  
 
 class InvoiceViewEditView(CreateAPIView):
     
@@ -710,11 +722,11 @@ class InvoiceViewEditView(CreateAPIView):
                 
                 query1 = TC_InvoicesReferences.objects.filter(Invoice=id).values('Order')
                 Orderdata = list()
-                query = T_Invoices.objects.filter(id=id).values('Customer','InvoiceNumber','FullInvoiceNumber')
+                query = T_Invoices.objects.filter(id=id).values('Customer','InvoiceDate','Vehicle_id')
                 # print(query.query)
                 Customer=query[0]['Customer']
-                InvoiceNumber=query[0]['InvoiceNumber']
-                FullInvoiceNumber=query[0]['FullInvoiceNumber']
+                InvoiceDate=query[0]['InvoiceDate']
+                Vehicle=query[0]['Vehicle_id']
                 Itemsquery= TC_InvoiceItems.objects.raw('''SELECT TC_InvoiceItems.id,TC_InvoiceItems.Item_id,M_Items.Name ItemName,TC_InvoiceItems.Quantity,TC_InvoiceItems.MRP_id,TC_InvoiceItems.MRPValue,TC_InvoiceItems.Rate,TC_InvoiceItems.Unit_id,MC_ItemUnits.BaseUnitConversion UnitName,MC_ItemUnits.UnitID_id DeletedMCUnitsUnitID,MC_ItemUnits.BaseUnitQuantity ConversionUnit,TC_InvoiceItems.BaseUnitQuantity,TC_InvoiceItems.GST_id,M_GSTHSNCode.HSNCode,TC_InvoiceItems.GSTPercentage,TC_InvoiceItems.BasicAmount,TC_InvoiceItems.GSTAmount,CGST, SGST, IGST, CGSTPercentage,SGSTPercentage, IGSTPercentage,Amount,DiscountType,Discount,DiscountAmount FROM TC_InvoiceItems JOIN M_Items ON M_Items.id = TC_InvoiceItems.Item_id JOIN MC_ItemUnits ON MC_ItemUnits.id = TC_InvoiceItems.Unit_id JOIN M_GSTHSNCode ON M_GSTHSNCode.id = TC_InvoiceItems.GST_id Where TC_InvoiceItems.Invoice_id=%s ''',([id]))
                 if Itemsquery:
                     InvoiceEditSerializer = InvoiceEditItemSerializer(Itemsquery, many=True).data
@@ -724,7 +736,7 @@ class InvoiceViewEditView(CreateAPIView):
                         item_id = b['Item_id']
                       
                         if item_id in seen_item_ids:
-                            break  # Exit the loop when a repeated Item_id is encountered
+                            continue   # Exit the loop when a repeated Item_id is encountered
                         seen_item_ids.add(item_id)  # Add the current Item_id to the set of seen Item_ids
                         batchquery = TC_InvoiceItems.objects.filter(Item=item_id,Invoice = id).values('LiveBatch_id')
                         LiveBatchIDlist = list(batchquery.values_list('LiveBatch_id', flat=True))
@@ -735,8 +747,6 @@ class InvoiceViewEditView(CreateAPIView):
                         stockDatalist = list()
                         queryset = TC_InvoiceItems.objects.filter(Item_id=item_id,Invoice_id=id,LiveBatch_id__in=LiveBatchIDlist).aggregate(Quantity=Sum('Quantity'))
                         quantity_sum = queryset.get('Quantity', 0)
-                       
-                       
 
                         for d in InvocieEditStock:
                             Rate=RateCalculationFunction(d['LiveBatchID'],d['Item_id'],Customer,0,d["UnitID_id"],0,0).RateWithGST()
@@ -759,43 +769,44 @@ class InvoiceViewEditView(CreateAPIView):
                                     
                                     })
                         
-                            OrderItemDetails.append({
-                                
-                                "id": b['id'],
-                                "Item": item_id,
-                                "ItemName": b['ItemName'],
-                                "Quantity": quantity_sum,
-                                "MRP": b['MRP_id'],
-                                "MRPValue": b['MRPValue'],
-                                "Rate": b['Rate'],
-                                "Unit": b['Unit_id'],
-                                "UnitName": b['UnitName'],
-                                "DeletedMCUnitsUnitID":b['DeletedMCUnitsUnitID'],
-                                "ConversionUnit": b['ConversionUnit'],
-                                "BaseUnitQuantity": b['BaseUnitQuantity'],
-                                "GST": b['GST_id'],
-                                "HSNCode": b['HSNCode'],
-                                "GSTPercentage": b['GSTPercentage'],
-                                "BasicAmount": b['BasicAmount'],
-                                "GSTAmount": b['GSTAmount'],
-                                "CGST": b['CGST'],
-                                "SGST": b['SGST'],
-                                "IGST": b['IGST'],
-                                "CGSTPercentage": b['CGSTPercentage'],
-                                "SGSTPercentage": b['SGSTPercentage'],
-                                "IGSTPercentage": b['IGSTPercentage'],
-                                "Amount": b['Amount'],
-                                "DiscountType" : b['DiscountType'],
-                                "Discount" :b['Discount'] ,
-                                "DiscountAmount":b['DiscountAmount'],
-                                "UnitDetails":UnitDropdown(b['Item_id'],Customer,0),
-                                "StockDetails":stockDatalist
-                            })
+                        OrderItemDetails.append({
+                            
+                            "id": b['id'],
+                            "Item": item_id,
+                            "ItemName": b['ItemName'],
+                            "Quantity": quantity_sum,
+                            "MRP": b['MRP_id'],
+                            "MRPValue": b['MRPValue'],
+                            "Rate": b['Rate'],
+                            "Unit": b['Unit_id'],
+                            "UnitName": b['UnitName'],
+                            "DeletedMCUnitsUnitID":b['DeletedMCUnitsUnitID'],
+                            "ConversionUnit": b['ConversionUnit'],
+                            "BaseUnitQuantity": b['BaseUnitQuantity'],
+                            "GST": b['GST_id'],
+                            "HSNCode": b['HSNCode'],
+                            "GSTPercentage": b['GSTPercentage'],
+                            "BasicAmount": b['BasicAmount'],
+                            "GSTAmount": b['GSTAmount'],
+                            "CGST": b['CGST'],
+                            "SGST": b['SGST'],
+                            "IGST": b['IGST'],
+                            "CGSTPercentage": b['CGSTPercentage'],
+                            "SGSTPercentage": b['SGSTPercentage'],
+                            "IGSTPercentage": b['IGSTPercentage'],
+                            "Amount": b['Amount'],
+                            "DiscountType" : b['DiscountType'],
+                            "Discount" :b['Discount'] ,
+                            "DiscountAmount":b['DiscountAmount'],
+                            "UnitDetails":UnitDropdown(b['Item_id'],Customer,0),
+                            "StockDetails":stockDatalist
+                        })
                     Orderdata.append({
                         "OrderIDs":[str(query1[0]['Order'])],
                         "OrderItemDetails":OrderItemDetails,
-                        "InvoiceNumber":InvoiceNumber,
-                        "FullInvoiceNumber":FullInvoiceNumber
+                        "InvoiceDate":InvoiceDate,
+                        "Vehicle":Vehicle
+                        
                         })       
             return JsonResponse({'StatusCode': 200, 'Status': True, 'Data': Orderdata[0]})
         except Exception as e:
@@ -835,10 +846,13 @@ class InvoiceViewEditView(CreateAPIView):
                 
                 if Invoice_Serializer.is_valid():
                     Invoice_Serializer.save()
+                    log_entry = create_transaction_logNew(request, {'InvoiceID':id}, Invoicedata['Party'],'InvoiceDate:'+Invoicedata['InvoiceDate'],5,0,0,0,Invoicedata['Customer'])
                     return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Invoice Updated Successfully', 'Data': []})
                 else:
+                    log_entry = create_transaction_logNew(request, {'InvoiceID':id}, 0,Invoice_Serializer.errors,34,0)
                     transaction.set_rollback(True)
                     return JsonResponse({'StatusCode': 406, 'Status': True, 'Message': Invoice_Serializer.errors, 'Data': []})    
         except Exception as e:
+                log_entry = create_transaction_logNew(request, {'InvoiceID':id},0,Exception(e),33,0)
                 return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})     
                                   

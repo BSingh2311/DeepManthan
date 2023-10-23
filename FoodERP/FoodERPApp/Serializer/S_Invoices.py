@@ -152,15 +152,16 @@ class BulkInvoiceSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = T_Invoices
-        fields = ['InvoiceDate', 'InvoiceNumber', 'FullInvoiceNumber', 'GrandTotal', 'RoundOffAmount', 'CreatedBy', 'UpdatedBy', 'Customer', 'Party', 'InvoiceItems']
+        fields = ['InvoiceDate', 'InvoiceNumber', 'FullInvoiceNumber', 'GrandTotal', 'RoundOffAmount','TCSAmount', 'CreatedBy', 'UpdatedBy', 'Customer', 'Party', 'InvoiceItems']
         # fields ='__all__'
     
     def create(self, validated_data):
-
+        print(validated_data)
         InvoiceItems_data = validated_data.pop('InvoiceItems')
         InvoiceID = T_Invoices.objects.create(**validated_data)
-        
+        # print(InvoiceID)
         for InvoiceItem_data in InvoiceItems_data:
+            print(InvoiceID)
             InvoiceItemID =TC_InvoiceItems.objects.create(Invoice=InvoiceID, **InvoiceItem_data)
             
         return InvoiceID        
@@ -373,32 +374,19 @@ class UpdateInvoiceSerializer(serializers.ModelSerializer):
     obatchwiseStock=UpdateobatchwiseStockSerializer(many=True)
     class Meta:
         model = T_Invoices
-        fields = ['id','InvoiceDate', 'InvoiceNumber', 'FullInvoiceNumber', 'GrandTotal', 'RoundOffAmount', 'CreatedBy', 'UpdatedBy', 'Customer', 'Party','Vehicle','Driver', 'InvoiceItems', 'InvoicesReferences', 'obatchwiseStock','TCSAmount']
+        fields = ['id','GrandTotal', 'RoundOffAmount', 'CreatedBy', 'UpdatedBy', 'Customer', 'Party','Vehicle','InvoiceItems', 'InvoicesReferences', 'obatchwiseStock','TCSAmount']
     
     def update(self, instance, validated_data):
     
-        instance.InvoiceDate = validated_data.get(
-            'InvoiceDate', instance.InvoiceDate)
-        instance.InvoiceNumber = validated_data.get(
-            'InvoiceNumber', instance.InvoiceNumber)
-        instance.FullInvoiceNumber = validated_data.get(
-            'FullInvoiceNumber', instance.FullInvoiceNumber)
+        
         instance.GrandTotal = validated_data.get(
             'GrandTotal', instance.GrandTotal)
         instance.RoundOffAmount = validated_data.get(
             'RoundOffAmount', instance.RoundOffAmount)
-        instance.CreatedBy = validated_data.get(
-            'CreatedBy', instance.CreatedBy)
         instance.UpdatedBy = validated_data.get(
             'UpdatedBy', instance.UpdatedBy)
-        instance.Customer = validated_data.get(
-            'Customer', instance.Customer)
-        instance.Party = validated_data.get(
-            'Party', instance.Party)
         instance.Vehicle = validated_data.get(
             'Vehicle', instance.Vehicle)
-        instance.Driver = validated_data.get(
-            'Driver', instance.Driver)
         instance.TCSAmount = validated_data.get(
             'TCSAmount', instance.TCSAmount)
             

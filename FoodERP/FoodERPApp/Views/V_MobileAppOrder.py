@@ -9,11 +9,13 @@ from rest_framework.parsers import JSONParser
 from ..Views.V_TransactionNumberfun import GetMaxNumber, GetPrifix
 from ..Views.V_CommFunction import *
 from ..Serializer.S_Orders import *
+from ..Serializer.S_MobileAppOrder import *
 from ..models import *
 from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework.authentication import BasicAuthentication
 import json ,requests
+
 
 class T_MobileAppOrdersView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
@@ -26,13 +28,12 @@ class T_MobileAppOrdersView(CreateAPIView):
             with transaction.atomic():
                 data = JSONParser().parse(request)
                 auth_header = request.META.get('HTTP_AUTHORIZATION')
-                print(auth_header)
                 if auth_header:
-                    print('000000000')
+                    
                     # Parsing the authorization header
                     auth_type, auth_string = auth_header.split(' ', 1)
                     if auth_type.lower() == 'basic':
-                        print('000011111')
+                       
                         # Decoding the base64-encoded username and password
                         try:
                             username, password = base64.b64decode(
@@ -40,14 +41,14 @@ class T_MobileAppOrdersView(CreateAPIView):
                         except (TypeError, ValueError, UnicodeDecodeError):
                             return responses('Invalid authorization header', status=status.HTTP_401_UNAUTHORIZED)
                         # Authenticating the user
-                    print(username,password)    
-                    print('1111!1')    
+                    # print(username,password)    
+                    # print('1111!1')    
                     user = authenticate(request, username=username, password=password)
-                    print(username,password)
+                    # print(username,password)
                     InvoiceItems = list()
                     
                     if user is not None:
-                        print('aaaaaaaaaaaa')
+                        # print('aaaaaaaaaaaa')
                         Supplier = data['FoodERPSupplierID']
                         Customer = data['FoodERPRetailerID']
                         OrderDate = data['OrderDate']
@@ -58,7 +59,7 @@ class T_MobileAppOrdersView(CreateAPIView):
                         Orderitem=list()
                         
                         for aa in data['OrderItem']:
-                            print(aa['FoodERPItemID'])
+                            # print(aa['FoodERPItemID'])
                             unit=MC_ItemUnits.objects.filter(UnitID_id=1,Item_id=aa['FoodERPItemID'],IsDeleted=0).values('id')
                             Gst = GSTHsnCodeMaster(aa['FoodERPItemID'], OrderDate).GetTodaysGstHsnCode()
                             BasicAmount=round(float(aa['RatewithoutGST'])*float(aa['QuantityinPieces']),2)
@@ -115,7 +116,7 @@ class T_MobileAppOrdersView(CreateAPIView):
                         b = GetPrifix.GetOrderPrifix(Supplier)
                         
                         c=MC_PartyAddress.objects.filter(Party_id=Customer,IsDefault=1).values('id')
-                        print(c)
+                        # print(c)
                             
                         
                         Orderdata.append({
@@ -157,17 +158,17 @@ class T_MobileAppOrdersView(CreateAPIView):
                             PartyID = Order_serializer.data['Customer']
                             
 
-                            log_entry = create_transaction_log(request, Orderdata, 0, Supplier, 'MobileAppOrder Save Successfully',1,OrderID)    
+                            log_entry = create_transaction_log(request, Orderdata, 0, Supplier, 'MobileAppOrder Save Successfully',149,OrderID)    
                             return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Order Save Successfully', 'FoodERPOrderID': OrderID})
-                        log_entry = create_transaction_log(request, Orderdata, 0, 0, Order_serializer.errors,34,0)
+                        log_entry = create_transaction_log(request, Orderdata, 0, 0, Order_serializer.errors,161,0)
                         return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': Order_serializer.errors, 'Data': []})
                     else:
-                        print('bbbbbbbbbb')
+                        # print('bbbbbbbbbb')
                         # Invalid authorization header or authentication failed
                         return response('Unauthorized', status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             # log_entry = create_transaction_log(request, Orderdata, 0, 0, Exception(e),33,0)
-            print('ccccccccccccccccccc')
+            # print('ccccccccccccccccccc')
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  e, 'Data': []})
 
 
@@ -178,13 +179,13 @@ class T_MobileAppOrdersView(CreateAPIView):
             with transaction.atomic():
                 data = JSONParser().parse(request)
                 auth_header = request.META.get('HTTP_AUTHORIZATION')
-                print(auth_header)
+                # print(auth_header)
                 if auth_header:
-                    print('000000000')
+                    # print('000000000')
                     # Parsing the authorization header
                     auth_type, auth_string = auth_header.split(' ', 1)
                     if auth_type.lower() == 'basic':
-                        print('000011111')
+                        # print('000011111')
                         # Decoding the base64-encoded username and password
                         try:
                             username, password = base64.b64decode(
@@ -192,17 +193,17 @@ class T_MobileAppOrdersView(CreateAPIView):
                         except (TypeError, ValueError, UnicodeDecodeError):
                             return responses('Invalid authorization header', status=status.HTTP_401_UNAUTHORIZED)
                         # Authenticating the user
-                    print(username,password)    
-                    print('1111!1')    
+                    # print(username,password)    
+                    # print('1111!1')    
                     user = authenticate(request, username=username, password=password)
-                    print(username,password)
+                    # print(username,password)
                     InvoiceItems = list()
                     
                     if user is not None:
-                        print('aaaaaaaaaaaa')
-                        print(id)
+                        # print('aaaaaaaaaaaa')
+                        # print(id)
                         OrderupdateByID = T_Orders.objects.get(id=id)
-                        print(OrderupdateByID)
+                        # print(OrderupdateByID)
                         Supplier = data['FoodERPSupplierID']
                         Customer = data['FoodERPRetailerID']
                         OrderDate = data['OrderDate']
@@ -213,7 +214,7 @@ class T_MobileAppOrdersView(CreateAPIView):
                         Orderitem=list()
                         
                         for aa in data['OrderItem']:
-                            print(aa['FoodERPItemID'])
+                            # print(aa['FoodERPItemID'])
                             unit=MC_ItemUnits.objects.filter(UnitID_id=1,Item_id=aa['FoodERPItemID'],IsDeleted=0).values('id')
                             Gst = GSTHsnCodeMaster(aa['FoodERPItemID'], OrderDate).GetTodaysGstHsnCode()
                             BasicAmount=round(float(aa['RatewithoutGST'])*float(aa['QuantityinPieces']),2)
@@ -270,7 +271,7 @@ class T_MobileAppOrdersView(CreateAPIView):
                         # b = GetPrifix.GetOrderPrifix(Supplier)
                         
                         c=MC_PartyAddress.objects.filter(Party_id=Customer,IsDefault=1).values('id')
-                        print(c)
+                        # print(c)
                             
                         
                         Orderdata.append({
@@ -314,17 +315,17 @@ class T_MobileAppOrdersView(CreateAPIView):
                             PartyID = Order_serializer.data['Customer']
                             
 
-                            log_entry = create_transaction_log(request, Orderdata, 0, Supplier, 'MobileAppOrder Update Successfully',1,OrderID)    
+                            log_entry = create_transaction_log(request, Orderdata, 0, Supplier, 'MobileAppOrder Update Successfully',150,OrderID)    
                             return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Order Update Successfully', 'FoodERPOrderID': OrderID})
-                        log_entry = create_transaction_log(request, Orderdata, 0, 0, Order_serializer.errors,34,0)
+                        log_entry = create_transaction_log(request, Orderdata, 0, 0, Order_serializer.errors,162,0)
                         return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': Order_serializer.errors, 'Data': []})
                     else:
-                        print('bbbbbbbbbb')
+                        # print('bbbbbbbbbb')
                         # Invalid authorization header or authentication failed
                         return response('Unauthorized', status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             # log_entry = create_transaction_log(request, Orderdata, 0, 0, Exception(e),33,0)
-            print('ccccccccccccccccccc')
+            # print('ccccccccccccccccccc')
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  e, 'Data': []})
 
 class T_MobileAppOrdersDeleteView(CreateAPIView):
@@ -337,13 +338,13 @@ class T_MobileAppOrdersDeleteView(CreateAPIView):
             with transaction.atomic():
                 data = JSONParser().parse(request)
                 auth_header = request.META.get('HTTP_AUTHORIZATION')
-                print(auth_header)
+                # print(auth_header)
                 if auth_header:
-                    print('000000000')
+                    # print('000000000')
                     # Parsing the authorization header
                     auth_type, auth_string = auth_header.split(' ', 1)
                     if auth_type.lower() == 'basic':
-                        print('000011111')
+                        # print('000011111')
                         # Decoding the base64-encoded username and password
                         try:
                             username, password = base64.b64decode(
@@ -351,42 +352,41 @@ class T_MobileAppOrdersDeleteView(CreateAPIView):
                         except (TypeError, ValueError, UnicodeDecodeError):
                             return responses('Invalid authorization header', status=status.HTTP_401_UNAUTHORIZED)
                         # Authenticating the user
-                    print(username,password)    
-                    print('1111!1')    
+                    # print(username,password)    
+                    # print('1111!1')    
                     user = authenticate(request, username=username, password=password)
-                    print(username,password)
+                    # print(username,password)
                     InvoiceItems = list()
                     
                     if user is not None:
                         id = data['FoodERPOrderID']
                         Order_Data = T_Orders.objects.get(id=id)
                         Order_Data.delete()
-                        log_entry = create_transaction_log(request, {'OrderID':id}, 0, 'MobileAPPOrder Deleted Successfully',3,0)
+                        log_entry = create_transaction_log(request, {'OrderID':id}, 0, 0,'MobileAPPOrder Deleted Successfully',151,0)
                         return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Order Deleted Successfully'})
         except T_Orders.DoesNotExist:
-            log_entry = create_transaction_log(request, {'OrderID':id}, 0, 'Record Not available',29,0)
+            log_entry = create_transaction_log(request, {'OrderID':id}, 0, 0,'Record Not available',163,0)
             return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Record Not available', 'Data': []})
         except IntegrityError:
-            log_entry = create_transaction_log(request, {'OrderID':id}, 0, 'This Order is used in another Transaction ',8,0)
+            log_entry = create_transaction_log(request, {'OrderID':id}, 0,0, 'This Order is used in another Transaction ',163,0)
             return JsonResponse({'StatusCode': 226, 'Status': True, 'Message': 'This Order is used in another Transaction'})
         except Exception as e:
-            log_entry = create_transaction_log(request, {'OrderID':id}, 0, Exception(e),33,0)
+            log_entry = create_transaction_log(request, {'OrderID':id}, 0, 0,Exception(e),163,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})
 
 class NewProductSendToMobileAppView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
-
+ 
+   
     @transaction.atomic()
     def post(self, request,id=0):
         try:
             with transaction.atomic():
-                # data = JSONParser().parse(request)
-                # log_entry = create_transaction_log(request, data, 0, 0, "initiat")
-                # payload = json.dumps(data)
+                
                 ItemData=list()
                 today = date.today()
                 q0=M_Items.objects.raw('''SELECT M_Items.id ,M_Items.Name ItemName,ifnull(M_GroupType.Name,'') GroupTypeName,ifnull(M_Group.Name,'') FoodERPParentName,ifnull(MC_SubGroup.Name,'') FoodERPFamilyName 
-,ifnull(MC_ItemGroupDetails.GroupType_id,'') GroupTypeId,ifnull(MC_ItemGroupDetails.Group_id,'') FoodERPParentId,ifnull(MC_ItemGroupDetails.SubGroup_id,'') FoodERPFamilyId,M_Items.BaseUnitID_id,M_Items.isActive
+,ifnull(MC_ItemGroupDetails.GroupType_id,'') GroupTypeId,ifnull(MC_ItemGroupDetails.Group_id,'') FoodERPParentId,ifnull(MC_ItemGroupDetails.SubGroup_id,0) FoodERPFamilyId,M_Items.BaseUnitID_id,M_Items.isActive
 ,GSTHsnCodeMaster(M_Items.id,%s,3) HSNCode,GetTodaysDateMRP(M_Items.id,%s,2,0,0) MRPValue
 FROM M_Items
 left join MC_ItemGroupDetails on MC_ItemGroupDetails.Item_id=M_Items.id
@@ -394,55 +394,74 @@ left JOIN M_GroupType ON M_GroupType.id = MC_ItemGroupDetails.GroupType_id
 left JOIN M_Group ON M_Group.id  = MC_ItemGroupDetails.Group_id 
 left JOIN MC_SubGroup ON MC_SubGroup.id  = MC_ItemGroupDetails.SubGroup_id
 where M_Items.id=%s''',([today],[today],[id]))
-                print(q0)
+    
                 for row in q0:
                      
+                    RetaileRate=RateCalculationFunction(0,row.id,0,0,1,0,3).RateWithGST() 
+                    DistributorRate=RateCalculationFunction(0,row.id,0,0,1,0,2).RateWithGST()
+                    SuperStockistRate=RateCalculationFunction(0,row.id,0,0,1,0,1).RateWithGST()
+                    if row.isActive == True:
+                        ss='true'
+                    else:
+                        ss='false'    
                     ItemData.append({
-                            "FoodERPItemID": row.id,
-                            "FoodERPCategoryId":"",
-                            "FoodERPFamilyId":row.FoodERPFamilyId,
-                            "FoodERPTypeId":"",
+                            "FoodERPItemID": str(row.id),
+                            "FoodERPCategoryId":1,
+                            "FoodERPFamilyId":int(row.FoodERPFamilyId),
+                            "FoodERPTypeId":1,
                             "FoodERPUomId":row.BaseUnitID_id,
                             "ItemName":row.ItemName,
-                            "MRP":row.MRPValue,
-                            "RetailerRate":"",
-                            "DistributorRate":"",
-                            "SuperStockistRate":"",
+                            "MRP":float(row.MRPValue),
+                            "RetailerRate":float(RetaileRate[0]['RateWithoutGST']),
+                            "DistributorRate":float(DistributorRate[0]['RateWithoutGST']),
+                            "SuperStockistRate":float(SuperStockistRate[0]['RateWithoutGST']),
                             "ProductHSN":row.HSNCode,
-                            "IsActive":row.isActive
+                            "IsActive":bool(ss)
                             
                         })
 
                 payload={
                     "products" : ItemData
                 }
-                url = "https://webapps.theskygge.com/fmcg_middleware/products/add"
 
+                # url = "http://webapp.theskygge.com/fmcg_middleware/products/add"
+                # 'SecureToken': '1AJ6IseHBRn+fMD2cRmvMfZYXTUY/qGiX1qfGeOGV8nNa7LJH6osRq9ga3uGgU2P4gsvR/GGp5KQcNII7qdBjN/mt/DVo8nnWMNqzoRFDBiQXzK4k/yE7rlMCDgz42Y7',
+                SkyggeURL, Token  = GetThirdPartyAPIs(18)
+                url = SkyggeURL
+                
                 headers = {
-                            'SecureToken': '1AJ6IseHBRn+fMD2cRmvMfZYXTUY/qGiX1qfGeOGV8nNa7LJH6osRq9ga3uGgU2P4gsvR/GGp5KQcNII7qdBjN/mt/DVo8nnWMNqzoRFDBiQXzK4k/yE7rlMCDgz42Y7',
+                            'SecureToken': Token,
                             'Content-Type': 'application/json'
                           }
                 
-                print(payload)
-                response = requests.request(
-                    "POST", url, headers=headers, data=payload)
-                print(response.text)
-                response_json=response.text
-
                 
-                # log_entry = create_transaction_log(request, data, 0, 0,response_json)
-                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json, 'Data': []})
-            
+                payload_json_data = json.dumps(payload)
+                
+                response = requests.request("POST", url, headers=headers, data=payload_json_data)
+                
+                response_json=json.loads(response.text)
+                
+                # print('==============================',response_json['success'])
+                if(response_json['success'] == True):
+                    log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json,152)
+                    for a in response_json['data']:
+                        query = M_Items.objects.filter(id=id).update(SkyggeProductID =a['productId'])
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})
+                else:
+                    log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json['message'],164)
+                    return JsonResponse({'StatusCode': 204, 'Status': True, 'Message':response_json, 'Data': []})
         except Exception as e:
+            # log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json,164)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})            
         
     @transaction.atomic()
     def put(self, request,id=0):
         try:
             with transaction.atomic():
-                # data = JSONParser().parse(request)
-                # log_entry = create_transaction_log(request, data, 0, 0, "initiat")
-                # payload = json.dumps(data)
+                Productdata = JSONParser().parse(request)
+                ProductID = Productdata['products']
+                ProductID_list = ProductID.split(",")
+                # print(ProductID_list)
                 ItemData=list()
                 today = date.today()
                 q0=M_Items.objects.raw('''SELECT M_Items.id ,M_Items.Name ItemName,ifnull(M_GroupType.Name,'') GroupTypeName,ifnull(M_Group.Name,'') FoodERPParentName,ifnull(MC_SubGroup.Name,'') FoodERPFamilyName 
@@ -453,21 +472,23 @@ left join MC_ItemGroupDetails on MC_ItemGroupDetails.Item_id=M_Items.id
 left JOIN M_GroupType ON M_GroupType.id = MC_ItemGroupDetails.GroupType_id 
 left JOIN M_Group ON M_Group.id  = MC_ItemGroupDetails.Group_id 
 left JOIN MC_SubGroup ON MC_SubGroup.id  = MC_ItemGroupDetails.SubGroup_id
-where M_Items.id=%s''',([today],[today],[id]))
-                print(q0)
+where M_Items.id in %s''',([today],[today],ProductID_list))
+                # print(q0)
                 for row in q0:
-                     
+                    RetaileRate=RateCalculationFunction(0,row.id,0,0,1,0,3).RateWithGST() 
+                    DistributorRate=RateCalculationFunction(0,row.id,0,0,1,0,2).RateWithGST()
+                    SuperStockistRate=RateCalculationFunction(0,row.id,0,0,1,0,1).RateWithGST() 
                     ItemData.append({
-                            "FoodERPItemID": row.id,
-                            "FoodERPCategoryId":"",
+                            "FoodERPItemID": str(row.id),
+                            "FoodERPCategoryId":1,
                             "FoodERPFamilyId":row.FoodERPFamilyId,
-                            "FoodERPTypeId":"",
+                            "FoodERPTypeId":1,
                             "FoodERPUomId":row.BaseUnitID_id,
                             "ItemName":row.ItemName,
-                            "MRP":row.MRPValue,
-                            "RetailerRate":"",
-                            "DistributorRate":"",
-                            "SuperStockistRate":"",
+                            "MRP":float(row.MRPValue),
+                            "RetailerRate":float(RetaileRate[0]['RateWithoutGST']),
+                            "DistributorRate":float(DistributorRate[0]['RateWithoutGST']),
+                            "SuperStockistRate":float(SuperStockistRate[0]['RateWithoutGST']),
                             "ProductHSN":row.HSNCode,
                             "IsActive":row.isActive
                             
@@ -476,60 +497,64 @@ where M_Items.id=%s''',([today],[today],[id]))
                 payload={
                     "products" : ItemData
                 }
-                url = "https://webapps.theskygge.com/fmcg_middleware/products/update"
-
+                # url = "http://webapp.theskygge.com/fmcg_middleware/products/update"
+                SkyggeURL, Token  = GetThirdPartyAPIs(19)
+                url = SkyggeURL
                 headers = {
-                            'SecureToken': '1AJ6IseHBRn+fMD2cRmvMfZYXTUY/qGiX1qfGeOGV8nNa7LJH6osRq9ga3uGgU2P4gsvR/GGp5KQcNII7qdBjN/mt/DVo8nnWMNqzoRFDBiQXzK4k/yE7rlMCDgz42Y7',
+                            'SecureToken': Token,
                             'Content-Type': 'application/json'
                           }
                 
-                print(payload)
-                response = requests.request(
-                    "put", url, headers=headers, data=payload)
-                print(response.text)
-                response_json=response.text
-
+                payload_json_data = json.dumps(payload)
+                response = requests.request("put", url, headers=headers, data=payload_json_data)
+                response_json=json.loads(response.text)
                 
-                # log_entry = create_transaction_log(request, data, 0, 0,response_json)
-                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json, 'Data': []})
-            
+                if(response_json['success'] == True):
+                    log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json['message'],153)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})
+                else:
+                    # print('aaaaaaaaaaaaaaaaa')
+                    log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json['message'],165)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})
+
         except Exception as e:
+            log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json,165)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})                
         
     @transaction.atomic()
     def delete(self, request,id=0):
         try:
             with transaction.atomic():
-                # data = JSONParser().parse(request)
-                # log_entry = create_transaction_log(request, data, 0, 0, "initiat")
-                # payload = json.dumps(data)
-                ItemData=list()
+                payload = json.dumps({
+                "products": [
+                    {
+                    "FoodERPItemID": id
+                    }
+                ]
+                })
                 
-                ItemData.append({
-                        "FoodERPItemID": id,
-                    })
-
-                payload={
-                    "products" : ItemData
-                }
-                url = "https://webapps.theskygge.com/fmcg_middleware/products/delete"
-
+                # url = "http://webapp.theskygge.com/fmcg_middleware/products/delete"
+                # 'SecureToken': '1AJ6IseHBRn+fMD2cRmvMfZYXTUY/qGiX1qfGeOGV8nNa7LJH6osRq9ga3uGgU2P4gsvR/GGp5KQcNII7qdBjN/mt/DVo8nnWMNqzoRFDBiQXzK4k/yE7rlMCDgz42Y7'
+               
+                SkyggeURL, Token  = GetThirdPartyAPIs(20)
+                url = SkyggeURL
+               
                 headers = {
-                            'SecureToken': '1AJ6IseHBRn+fMD2cRmvMfZYXTUY/qGiX1qfGeOGV8nNa7LJH6osRq9ga3uGgU2P4gsvR/GGp5KQcNII7qdBjN/mt/DVo8nnWMNqzoRFDBiQXzK4k/yE7rlMCDgz42Y7',
-                            'Content-Type': 'application/json'
-                          }
-                
-                print(payload)
-                response = requests.request(
-                    "delete", url, headers=headers, data=payload)
-                print(response.text)
-                response_json=response.text
+                'SecureToken': Token,
+                'Content-Type': 'application/json'
+                }
 
-                
-                # log_entry = create_transaction_log(request, data, 0, 0,response_json)
-                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json, 'Data': []})
+                response = requests.request("DELETE", url, headers=headers, data=payload)
+                response_json=json.loads(response.text)
+                if(response_json['success'] == True):
+                    log_entry = create_transaction_log(request, payload, 0, 0,response_json,154)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})
+                else:
+                    log_entry = create_transaction_log(request, payload, 0, 0,response_json,166)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})     
             
         except Exception as e:
+            log_entry = create_transaction_log(request, payload, 0, 0,response_json,166)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})    
         
 class NewRetailerSendToMobileAppView(CreateAPIView):
@@ -539,57 +564,380 @@ class NewRetailerSendToMobileAppView(CreateAPIView):
     def post(self, request,id=0):
         try:
             with transaction.atomic():
-                
-                ItemData=list()
+                Orderdata = JSONParser().parse(request)
+                RetailerID = Orderdata['RetailerID']
+                RetailerID_list = RetailerID.split(",")
+                # print(RetailerID_list)
+                RetailerData=list()
                 today = date.today()
-                q0=M_Items.objects.raw('''SELECT M_Items.id ,M_Items.Name ItemName,ifnull(M_GroupType.Name,'') GroupTypeName,ifnull(M_Group.Name,'') FoodERPParentName,ifnull(MC_SubGroup.Name,'') FoodERPFamilyName 
-,ifnull(MC_ItemGroupDetails.GroupType_id,'') GroupTypeId,ifnull(MC_ItemGroupDetails.Group_id,'') FoodERPParentId,ifnull(MC_ItemGroupDetails.SubGroup_id,'') FoodERPFamilyId,M_Items.BaseUnitID_id,M_Items.isActive
-,GSTHsnCodeMaster(M_Items.id,%s,3) HSNCode,GetTodaysDateMRP(M_Items.id,%s,2,0,0) MRPValue
-FROM M_Items
-left join MC_ItemGroupDetails on MC_ItemGroupDetails.Item_id=M_Items.id
-left JOIN M_GroupType ON M_GroupType.id = MC_ItemGroupDetails.GroupType_id 
-left JOIN M_Group ON M_Group.id  = MC_ItemGroupDetails.Group_id 
-left JOIN MC_SubGroup ON MC_SubGroup.id  = MC_ItemGroupDetails.SubGroup_id
-where M_Items.id=%s''',([today],[today],[id]))
-                print(q0)
+                q0=M_Parties.objects.raw('''SELECT cust.id,cust.Name RetailerName,(cust.MobileNo) MobileNumber,cust.Email EmailAddress,cust.PAN PANNumber,
+cust.GSTIN GSTNumber,cust.Latitude, cust.Longitude,dist.id distid,MC_PartyAddress.FSSAINo,MC_PartyAddress.FSSAIExipry,
+(select Route_id from MC_PartySubParty where Party_id=dist.id and SubParty_id=cust.id )Route_id,MC_PartyAddress.Address
+ FROM MC_PartySubParty 
+ join M_Parties dist on dist.id=MC_PartySubParty.Party_id
+ join M_Parties cust on cust.id=MC_PartySubParty.SubParty_id
+ left join MC_PartyAddress on cust.id = MC_PartyAddress.Party_id and MC_PartyAddress.IsDefault=0
+ where cust.PartyType_id=11 and cust.id in %s''',([RetailerID_list]))
+                # print(q0.query)
                 for row in q0:
-                     
-                    ItemData.append({
-                            "FoodERPItemID": row.id,
-                            "FoodERPCategoryId":"",
-                            "FoodERPFamilyId":row.FoodERPFamilyId,
-                            "FoodERPTypeId":"",
-                            "FoodERPUomId":row.BaseUnitID_id,
-                            "ItemName":row.ItemName,
-                            "MRP":row.MRPValue,
-                            "RetailerRate":"",
-                            "DistributorRate":"",
-                            "SuperStockistRate":"",
-                            "ProductHSN":row.HSNCode,
-                            "IsActive":row.isActive
+                    # print(row) 
+                    RetailerData.append({
+                            "FoodERPRetailerID": str(row.id),
+                            # "RouteId"       :row.Route_id,
+                            "RouteId" : 1,
+                            "RetailerName"  :row.RetailerName,
+                            "DistributorID" :row.distid,
+                            "Address"       :row.Address,
+                            "MobileNumber"  :str(row.MobileNumber),
+                            "EmailAddress"  :row.EmailAddress,
+                            "PANNumber"     :row.PANNumber,
+                            "GSTNumber"     :row.GSTNumber,
+                            "FSSAINumber"   :row.FSSAINo,
+                            "FSSAIExpiry"   :row.FSSAIExipry,
+                            # "Latitude"      :row.Latitude,
+                            # "Longitude"     :row.Longitude,
+                            "IsActive"      :row.isActive
+                           
                             
                         })
 
                 payload={
-                    "products" : ItemData
+                    "outlets" : RetailerData
                 }
-                url = "https://webapps.theskygge.com/fmcg_middleware/products/add"
+                
+                # url = "http://webapp.theskygge.com/fmcg_middleware/outlets/add"
+                SkyggeURL, Token  = GetThirdPartyAPIs(21)
+                url = SkyggeURL
 
                 headers = {
-                            'SecureToken': '1AJ6IseHBRn+fMD2cRmvMfZYXTUY/qGiX1qfGeOGV8nNa7LJH6osRq9ga3uGgU2P4gsvR/GGp5KQcNII7qdBjN/mt/DVo8nnWMNqzoRFDBiQXzK4k/yE7rlMCDgz42Y7',
+                            'SecureToken': Token,
                             'Content-Type': 'application/json'
                           }
                 
-                print(payload)
+                payload_json_data = json.dumps(payload)
+                # print(payload_json_data)
                 response = requests.request(
-                    "POST", url, headers=headers, data=payload)
-                print(response.text)
-                response_json=response.text
+                    "POST", url, headers=headers, data=payload_json_data)
+             
+                response_json=json.loads(response.text)
+                # print(response_json)
+                if(response_json['success'] == True):
+                    log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json['message'],155)
+                    for a in response_json['data']:
+                        query = M_Parties.objects.filter(id=a['externalMappingId']).update(SkyggeID =a['outletId'])
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})
+                else:
+                    log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json['message'],167)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})
 
-                
-                # log_entry = create_transaction_log(request, data, 0, 0,response_json)
-                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json, 'Data': []})
-            
         except Exception as e:
+            # log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json,167)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})            
         
+    @transaction.atomic()
+    def put(self, request,id=0):
+        try:
+            with transaction.atomic():
+                Orderdata = JSONParser().parse(request)
+                RetailerID = Orderdata['RetailerID']
+                RetailerID_list = RetailerID.split(",")
+                RetailerData=list()
+                today = date.today()
+                q0=M_Parties.objects.raw('''SELECT cust.id,cust.Name RetailerName,cust.MobileNo MobileNumber,cust.Email EmailAddress,cust.PAN PANNumber,
+cust.GSTIN GSTNumber,cust.Latitude,cust.Longitude,dist.id distid,MC_PartyAddress.FSSAINo,MC_PartyAddress.FSSAIExipry,
+(select Route_id from MC_PartySubParty where Party_id=dist.id and SubParty_id=cust.id )Route_id,MC_PartyAddress.Address
+ FROM MC_PartySubParty 
+ join M_Parties dist on dist.id=MC_PartySubParty.Party_id
+ join M_Parties cust on cust.id=MC_PartySubParty.SubParty_id
+ left join MC_PartyAddress on cust.id = MC_PartyAddress.Party_id and MC_PartyAddress.IsDefault=0
+ where cust.PartyType_id=11 and cust.id in %s''',[RetailerID_list])
+                print(q0)
+                for row in q0:
+                    # print(row.isActive)
+                    RetailerData.append({
+                            "FoodERPRetailerID": str(row.id),
+                            # "RouteId"       :row.Route_id,
+                            "RouteId" : 1,
+                            "RetailerName"  :row.RetailerName,
+                            "DistributorID" :row.distid,
+                            "Address"       :row.Address,
+                            "MobileNumber"  :str(row.MobileNumber),
+                            "EmailAddress"  :row.EmailAddress,
+                            "PANNumber"     :row.PANNumber,
+                            "GSTNumber"     :row.GSTNumber,
+                            "FSSAINumber"   :row.FSSAINo,
+                            "FSSAIExpiry"   :row.FSSAIExipry,
+                            # "Latitude"      :row.Latitude,
+                            # "Longitude"     :row.Longitude,
+                            "IsActive"      :row.isActive
+                           
+                            
+                        })
+
+                payload={
+                    "outlets" : RetailerData
+                }
+                # url = "http://webapp.theskygge.com/fmcg_middleware/outlets/update"
+                SkyggeURL, Token  = GetThirdPartyAPIs(22)
+                url = SkyggeURL
+                headers = {
+                            'SecureToken': Token,
+                            'Content-Type': 'application/json'
+                          }
+                
+                payload_json_data = json.dumps(payload)
+                # print(payload_json_data)
+                response = requests.request("put", url, headers=headers, data=payload_json_data)
+                response_json=json.loads(response.text)
+                # print('======================',response_json)
+                if(response_json['success'] == True):
+                    log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json['message'],156)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})
+                else:
+                    log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json['message'],168)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})    
+            
+        except Exception as e:
+            # log_entry = create_transaction_log(request, payload_json_data, 0, 0,response_json,168)
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})            
+            
+    @transaction.atomic()
+    def delete(self, request,id=0):
+        try:
+            with transaction.atomic():
+                
+                RetailerData=list()
+                
+                RetailerData.append({
+                        
+                        "FoodERPRetailerID" : id 
+                    })
+
+                payload={
+                    "outlets" : RetailerData
+                }
+                # url = "http://webapp.theskygge.com/fmcg_middleware/outlets/delete"
+                SkyggeURL, Token  = GetThirdPartyAPIs(23)
+                url = SkyggeURL
+                headers = {
+                            'SecureToken': Token,
+                            'Content-Type': 'application/json'
+                          }
+                
+                payload_json_data = json.dumps(payload)
+                response = requests.request("delete", url, headers=headers, data=payload_json_data)
+                # print(response.text)
+                response_json=json.loads(response.text)
+                
+                if(response_json['success'] == True):
+                    log_entry = create_transaction_log(request, payload, 0, 0,response_json['message'],157)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})
+                else:
+                    log_entry = create_transaction_log(request, payload, 0, 0,response_json['message'],169)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message':response_json['message'], 'Data': []})
+
+        except Exception as e:
+            # log_entry = create_transaction_log(request, payload, 0, 0,response_json,169)
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data': []})  
+        
+        
+        
+class RetailerAddFromMobileAppview(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    authentication_classes = [BasicAuthentication]
+    
+    @transaction.atomic()
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                data = JSONParser().parse(request)
+                auth_header = request.META.get('HTTP_AUTHORIZATION')
+                if auth_header:
+                    # Parsing the authorization header
+                    auth_type, auth_string = auth_header.split(' ', 1)
+                    if auth_type.lower() == 'basic':
+                        # Decoding the base64-encoded username and password
+                        try:
+                            username, password = base64.b64decode(
+                                auth_string).decode().split(':', 1)
+                        except (TypeError, ValueError, UnicodeDecodeError):
+                            return responses('Invalid authorization header', status=status.HTTP_401_UNAUTHORIZED)
+                        # Authenticating the user
+                    
+                    user = authenticate(request, username=username, password=password)
+                    
+                    RetailerAddList=list()
+                    for a in data['outlets']:
+                        query1 = M_Parties.objects.filter(id=a['DistributorId']).values('State_id','District_id','City_id')
+                        PartySubParty = list()
+                        PartySubParty.append({
+                            "Party":a['DistributorId'],
+                            "Route": "",
+                            "CreatedBy":430,
+                            "UpdatedBy":430,  
+                        })
+                        PartyAddress = list()
+                        PartyAddress.append({
+                            "Address": a['Address'],
+                            "FSSAINo": a['FSSAINumber'],
+                            "FSSAIExipry": a['FSSAIExpiry'],
+                            "IsDefault": True, 
+                        })
+                        PartyPrefix = list()
+                        PartyPrefix.append({
+                            "Orderprefix": "PO",
+                            "Invoiceprefix": "IN",
+                            "Grnprefix": "GRN",
+                            "Receiptprefix": "RE",
+                            "WorkOrderprefix": "",
+                            "MaterialIssueprefix": "",
+                            "Demandprefix": "",
+                            "IBChallanprefix": "",
+                            "IBInwardprefix": "",
+                            "PurchaseReturnprefix": "PR",
+                            "Creditprefix": "CR",
+                            "Debitprefix": "DR" 
+                        })
+                        
+                        RetailerAddList.append(
+                            {
+                                "Name":a['RetailerName'],
+                                "PriceList": 3,
+                                "PartyType": 11,
+                                "Company": 3,
+                                "PAN": a['PANNumber'],
+                                "Email":a['EmailAddress'],
+                                "MobileNo": a['MobileNumber'],
+                                "Latitude": a['Latitude'],
+                                "Longitude": a['Longitude'],
+                                "GSTIN": a['GSTNumber'],
+                                "isActive": a['IsActive'],
+                                "CreatedBy":430,
+                                "UpdatedBy":430,
+                                "IsApprovedParty":1,
+                                "State":query1[0]['State_id'], #Compensary
+                                "District":query1[0]['District_id'], #Compensary
+                                "City":query1[0]['City_id'], #Compensary
+                                "PartySubParty":PartySubParty,
+                                "PartyAddress":PartyAddress,
+                                "PartyPrefix":PartyPrefix
+                            })
+                    inserted_retailerlist = list()     
+                    for aa in RetailerAddList:
+                        Retailer_serializer = RetailerAddFromMobileAppSerializer(data=aa)
+                        if Retailer_serializer.is_valid():
+                            Retailer = Retailer_serializer.save()
+                            inserted_retailerlist.append({
+                                "FoodERPRetailerID":Retailer.id,
+                                "RetailerName":Retailer.Name,
+                                "GSTNumber":Retailer.GSTIN
+                            })
+                        else:
+                            log_entry = create_transaction_log(request, RetailerAddList, 0, 0,'fail to Added Retailer From MobileApp ',170,0)
+                            transaction.set_rollback(True)
+                            return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': Retailer_serializer.errors})
+                    log_entry = create_transaction_log(request, RetailerAddList, 0, 0,'Retailer Added From MobileApp Successfully',158,0)
+                    return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Retailer Added From App Successfully','InsertedoutletsCount': len(inserted_retailerlist),"outlets":inserted_retailerlist})                        
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  e })
+        
+        
+        
+class RetailerUpdateFromMobileAppview(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    authentication_classes = [BasicAuthentication]
+    
+    @transaction.atomic()
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                data = JSONParser().parse(request)
+                auth_header = request.META.get('HTTP_AUTHORIZATION')
+                if auth_header:
+                    # Parsing the authorization header
+                    auth_type, auth_string = auth_header.split(' ', 1)
+                    if auth_type.lower() == 'basic':
+                        # Decoding the base64-encoded username and password
+                        try:
+                            username, password = base64.b64decode(
+                                auth_string).decode().split(':', 1)
+                        except (TypeError, ValueError, UnicodeDecodeError):
+                            return responses('Invalid authorization header', status=status.HTTP_401_UNAUTHORIZED)
+                        # Authenticating the user
+                    
+                    user = authenticate(request, username=username, password=password)
+                    
+                    RetailerAddList=list()
+                    for a in data['outlets']:
+                        
+                        PartyAddress = list()
+                        PartyAddress.append({
+                            "FoodERPRetailerID":a['FoodERPRetailerID'],
+                            "Address": a['Address'],
+                            "FSSAINo": a['FSSAINumber'],
+                            "FSSAIExipry": a['FSSAIExpiry']
+                           
+                        })
+                        RetailerAddList.append(
+                            {
+                                "FoodERPRetailerID":a['FoodERPRetailerID'],
+                                "Name":a['RetailerName'],
+                                "PAN": a['PANNumber'],
+                                "Email":a['EmailAddress'],
+                                "MobileNo": a['MobileNumber'],
+                                "Latitude": a['Latitude'],
+                                "Longitude": a['Longitude'],
+                                "GSTIN": a['GSTNumber'],
+                                "isActive": a['IsActive'],
+                                "UpdatedBy":430,
+                                "PartyAddress":PartyAddress
+                            })
+                    
+                    # return JsonResponse({'StatusCode': 406, 'Status': True,  'Message':RetailerAddList, 'Data': []})    
+                    for aa in RetailerAddList:
+                        PartiesdataByID = M_Parties.objects.get(id=aa['FoodERPRetailerID'])
+                        Retailer_serializer = RetailerUpdateFromMobileAppSerializer(PartiesdataByID, data=aa)
+                        if Retailer_serializer.is_valid():
+                            Retailer = Retailer_serializer.save()
+                            log_entry = create_transaction_log(request, aa, 0, 0,'Retailer Updated From Mobile App Successfully',159)
+                            return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Retailer Updated From Mobile App Successfully' })
+                        else:
+                            transaction.set_rollback(True)
+                            log_entry = create_transaction_log(request, aa, 0, 0,'fail to  Updated retailer From MobileApp ',171)
+                            return JsonResponse({'StatusCode': 406, 'Status': True,  'Message': Retailer_serializer.errors})
+                    # return JsonResponse({'StatusCode': 200, 'Status': True,  'Message': 'Retailer Updated From Mobile App Successfully' })                        
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  e, 'Data': []}) 
+
+class RetailerDeleteFromMobileApp(CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    authentication_classes = [BasicAuthentication]
+                  
+    @transaction.atomic()
+    def delete(self, request, id=0):
+        try:
+            with transaction.atomic():
+                auth_header = request.META.get('HTTP_AUTHORIZATION')
+                if auth_header:
+                    # Parsing the authorization header
+                    auth_type, auth_string = auth_header.split(' ', 1)
+                    if auth_type.lower() == 'basic':
+                        # Decoding the base64-encoded username and password
+                        try:
+                            username, password = base64.b64decode(
+                                auth_string).decode().split(':', 1)
+                        except (TypeError, ValueError, UnicodeDecodeError):
+                            return responses('Invalid authorization header', status=status.HTTP_401_UNAUTHORIZED)
+                        # Authenticating the user
+                    user = authenticate(request, username=username, password=password)
+                    M_Partiesdata = M_Parties.objects.get(id=id)
+                    M_Partiesdata.delete()
+                    log_entry = create_transaction_log(request, id, 0, 0,'Retailer  Deleted Successfully',160)
+                    return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': 'Retailer  Deleted Successfully'})
+        except M_Parties.DoesNotExist:
+            log_entry = create_transaction_log(request, id, 0, 0,'Retailer Not available',172)
+            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Retailer Not available'})
+        except IntegrityError:
+            log_entry = create_transaction_log(request, id, 0, 0,'Retailer used in another table',172)
+            return JsonResponse({'StatusCode': 204, 'Status': True, 'Message': 'Retailer used in another table'})              
+                 
