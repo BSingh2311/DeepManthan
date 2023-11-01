@@ -147,6 +147,8 @@ from .Views.V_Cluster import *
 
 from .Views.V_CentralServiceItemMaster import *
 
+from .Views.V_PartyDetails import *
+
 
 urlpatterns = [
     
@@ -641,6 +643,8 @@ urlpatterns = [
             url(r'GetTransactionType$',TransactionTypeListView.as_view()),
             url(r'TransactionDetails$',TransactionTypeView.as_view()),
 
+            url(r'TransactionJson/([0-9]+)$',TransactionJsonView.as_view()),    
+
 # RetailerApproval Apis
             url(r'PartyListForApproval$',PartiesListForApprovalView.as_view()),
            
@@ -659,8 +663,12 @@ urlpatterns = [
              url(r'CentralItemService/([0-9]+)$',CentralServiceItemViewSecond.as_view()), 
              url(r'CentralServiceItemAssignFilter$',CentralServiceItemAssignFilterView.as_view()),
              url(r'CentralServiceItemAssign$',CentralServiceItemAssignForParty.as_view()),
-             
-      
+             url(r'ReturnCentralServiceItemBatchcode$',CentralServiceItemView.as_view()),
+
+#PartyDetails
+              url(r'PartyDetails$',PartyDetailsView.as_view()),
+              url(r'PartyDetails/([0-9]+)$',PartyDetailsView.as_view()),
+              url(r'downloadQr/([0-9]+)$',FileDownloadView.as_view()),
               
                 
             

@@ -55,16 +55,17 @@ class TransactionTypeView(CreateAPIView):
                 Transactiondata = JSONParser().parse(request)
                 FromDateStr = Transactiondata['FromDate']
                 ToDateStr = Transactiondata['ToDate']
-                FromDate = datetime.strptime(FromDateStr, '%Y-%m-%d %H:%M')
-                ToDate = datetime.strptime(ToDateStr, '%Y-%m-%d %H:%M')
+                FromDate = datetime.strptime(FromDateStr, '%Y-%m-%d %H:%M:%S')
+                ToDate = datetime.strptime(ToDateStr, '%Y-%m-%d %H:%M:%S')
                 TransactionTypes = Transactiondata['TransactionType']
                 TransactionTypesIDs = TransactionTypes.split(',')
                 Users = Transactiondata['User']
                 UsersIDs = Users.split(',')
                 Parties = Transactiondata['Party']
                 PartyIDs = Parties.split(',')
-
-
+                TransactionCategory = Transactiondata['TransactionCategory']
+                TransactionCategoryIDs = TransactionCategory.split(',')
+                
                 conditions = []
 
                 if TransactionTypes == '' :
@@ -79,6 +80,10 @@ class TransactionTypeView(CreateAPIView):
                     pass
                 else:
                     conditions.append(f"PartyID IN ({','.join(PartyIDs)})")
+                if TransactionCategory == '' :
+                    pass
+                else:
+                    conditions.append(f"TransactionCategory IN ({','.join(TransactionCategoryIDs)})")
 
                 where_clause = " AND ".join(conditions) if conditions else ""
 
@@ -104,4 +109,34 @@ WHERE Transactiontime BETWEEN %s AND %s'''
         except Exception as e:
             log_entry = create_transaction_logNew(request, 0, 0,Exception(e),33,0)
             return JsonResponse({'StatusCode': 400, 'Status': True, 'Message':  Exception(e), 'Data':[]})
+
+class TransactionJsonView(CreateAPIView):
+
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, id=0):
+        try:
+            with transaction.atomic():
+                Transactiondata = Transactionlog.objects.raw('''
+                    SELECT Transactionlog.id, Transactionlog.Transactiontime, 
+                           Transactionlog.User, Transactionlog.IPaddress,
+                           Transactionlog.PartyID,Transactionlog.TransactionDetails, 
+                           Transactionlog.TransactionType, Transactionlog.TransactionID, 
+                           Transactionlog.FromDate, Transactionlog.ToDate, Transactionlog.CustomerID, 
+                           Transactionlog.JsonData,  TransactionLogJsonData.JsonData AS TransactionlogJsondata
+                    FROM Transactionlog
+                    INNER JOIN TransactionLogJsonData 
+                    ON Transactionlog.id = TransactionLogJsonData.Transactionlog_id 
+                    WHERE Transactionlog_id = %s
+                ''',[id])
+
+                if not Transactiondata:
+                    return JsonResponse({'StatusCode': 404, 'Status': False, 'Message': 'Transaction Not available', 'Data': []})
+
+                Transaction_serializer = TransactionJsonSerializer(Transactiondata, many=True).data
+                return JsonResponse({'StatusCode': 200, 'Status': True, 'Message': '', 'Data': Transaction_serializer})
+        except Exception as e:
+            return JsonResponse({'StatusCode': 400, 'Status': False, 'Message': str(e), 'Data': []})
+
+  
 

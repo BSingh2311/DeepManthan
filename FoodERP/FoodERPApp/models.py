@@ -1708,10 +1708,10 @@ class M_ImportFields(models.Model):
     ImportExcelType = models.ForeignKey(M_ImportExcelTypes,related_name='ImportFieldExcelType', on_delete=models.PROTECT)
     Company = models.ForeignKey(C_Companies,related_name='ImportFieldCompany', on_delete=models.PROTECT)
     Sequence = models.IntegerField(blank=True, null=True)
+    Format = models.CharField(max_length=500,blank=True, null=True)
     class Meta:
         db_table = "M_ImportFields"
- 
-        
+
 class MC_PartyImportFields(models.Model):
     Value =models.CharField(max_length=500)
     CreatedBy = models.IntegerField()
@@ -2199,7 +2199,19 @@ class MC_CentralServiceItemAssign(models.Model):
     CentralServiceItem = models.ForeignKey(M_CentralServiceItems, related_name='CentralServiceItems', on_delete=models.PROTECT)
     Party = models.ForeignKey(M_Parties, related_name='CentralServiceItemParty', on_delete=models.PROTECT) 
     class Meta:
-        db_table = "MC_CentralServiceItemAssign"        
+        db_table = "MC_CentralServiceItemAssign"
+
+class M_PartyDetails(models.Model):
+    Party = models.ForeignKey(M_Parties, related_name='PartyDetailsParty', on_delete=models.PROTECT)
+    Group = models.ForeignKey(M_Group, related_name='PartyItemGroup', on_delete=models.PROTECT,null=True,blank=True)
+    Cluster = models.ForeignKey(M_Cluster, related_name='PartyCluster', on_delete=models.PROTECT,null=True,blank=True)
+    SubCluster = models.ForeignKey(M_SubCluster, related_name='PartySubCluster', on_delete=models.PROTECT,null=True,blank=True)
+    Supplier = models.ForeignKey(M_Parties, related_name='PartyDetailSupplier', on_delete=models.PROTECT ,null=True,blank=True) 
+    
+    class Meta:
+        db_table = "M_PartyDetails" 
+
+
 
 
 
