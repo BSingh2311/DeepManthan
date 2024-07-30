@@ -457,7 +457,10 @@ class M_GetStockEntryList(CreateAPIView):
                 StockData = JSONParser().parse(request)
                 FromDate = StockData.get('FromDate')
                 ToDate = StockData.get('ToDate')
- 
+                    
+                if not FromDate or not ToDate:
+                    return JsonResponse({'StatusCode': 400, 'Status': False, 'Message': 'FromDate and ToDate are required', 'Data': []})
+
                 query = '''
                     SELECT 1 as id, s.StockDate, p.Name as PartyName, s.Party_id FROM fooderp.t_stock as s 
                     JOIN fooderp.m_parties as p ON s.Party_id = p.id   
