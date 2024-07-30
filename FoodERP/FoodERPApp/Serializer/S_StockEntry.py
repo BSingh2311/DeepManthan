@@ -61,4 +61,20 @@ class PartyStockAdjustmentOLiveBatchesSerializer(serializers.ModelSerializer):
         for O_BatchWiseLiveStockItems_data in O_BatchWiseLiveStockListItems_data:
             GrnItem=O_BatchWiseLiveStock.objects.filter(id=T_StockEntryItem_data['BatchCodeID']).update(BaseUnitQuantity=O_BatchWiseLiveStockItems_data['BaseUnitQuantity'])    
         
-        return GrnItem
+        return GrnItem 
+    
+class M_StockEntryListSerializerSecond(serializers.Serializer):
+    #s.StockDate,i.Name as ItemName,p.Name as PartyName, s.Party_id
+    id =  serializers.IntegerField() 
+    StockDate = serializers.DateField() 
+    PartyName = serializers.CharField(max_length=500)
+    Party_id =  serializers.IntegerField()   
+    # GetStockEntryItemList
+    
+class M_StockEntryItemListSecond(serializers.Serializer):
+    # m.Name, m.ShortName, m.Sequence, m.Barcode, m.SAPItemcode,CASE WHEN m.IsFranchisesItem=0 THEN 'No' ELSE 'Yes' END AS FranchisesItem,CASE WHEN m.IsCBMItem = 0 THEN 'No' ELSE 'Yes' END AS CBMItem
+    id =  serializers.IntegerField() 
+    Name=serializers.CharField(max_length=500) 
+    Quantity=serializers.DecimalField(max_digits=5, decimal_places=2)
+    MRPValue=serializers.DecimalField(max_digits=5, decimal_places=2)
+    Unit=serializers.CharField(max_length=500)  
